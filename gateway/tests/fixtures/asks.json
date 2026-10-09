@@ -1,0 +1,4694 @@
+[
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a001",
+    "phrases": [
+     "What's on my calendar today?",
+     "What do I have tomorrow?",
+     "How does Friday look?",
+     "What's on Oct 20?",
+     "Do I have class Thursday?"
+    ],
+    "intent": "List events for a given day or date",
+    "data_needed": "blocks table (synced -1d..+15d) plus a live read-only Google Calendar GET for other dates; exists",
+    "coverage": "covered",
+    "coverage_note": "schedule.js:17 isScheduleQuery, schedule.js:29-61 parseRange, schedule.js:68-74 events() (synced blocks or live read), schedule.js:76-95 scheduleAnswer; routed at conversation.js:45 with no model call",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:schedule",
+    "eval_phrases": [
+     0,
+     1,
+     4
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a002",
+    "phrases": [
+     "What's my week look like?",
+     "What's coming up?",
+     "Anything next week?",
+     "What do I have this weekend?",
+     "Next 10 days?"
+    ],
+    "intent": "Multi-day agenda summary",
+    "data_needed": "blocks + live Calendar reads, up to 31 days; exists",
+    "coverage": "covered",
+    "coverage_note": "schedule.js:37-41,52 ranges for week/weekend/next N days; grouping by day at schedule.js:92-94 (caps 10 days x 8 events)",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:schedule",
+    "eval_phrases": [
+     0,
+     1,
+     3
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a003",
+    "phrases": [
+     "What's next?",
+     "When's my next class?",
+     "What am I supposed to be doing right now?",
+     "How long until my next meeting?"
+    ],
+    "intent": "Current and next event with time until it",
+    "data_needed": "blocks table; exists",
+    "coverage": "partial",
+    "coverage_note": "tasks.js:11 WHATS_NEXT matches only exact phrasings ('what's next', 'what now'); tasks.js:15-24 gives current/next within 18h. 'When's my next class' hits schedule.js STRONG 'class' and falls to parseRange default 'rest of today' (schedule.js:53), so a next class tomorrow is only shown as a 'Next:' tail when today is empty (schedule.js:86). No 'next <event type>' search across days",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:next",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a004",
+    "phrases": [
+     "Am I free at 3 tomorrow?",
+     "Am I busy Thursday afternoon?",
+     "Can I do lunch at noon Friday?",
+     "Do I have anything at 7 tonight?"
+    ],
+    "intent": "Yes/no availability for a specific time window",
+    "data_needed": "blocks / Calendar events (freeBusy endpoint already allowlisted at gapi.js:10 but unused); exists",
+    "coverage": "partial",
+    "coverage_note": "'am i free/busy' routes to scheduleAnswer (schedule.js:11) which ignores the clock time and just lists the whole day; no yes/no or time-window check. Conflict logic exists only for proposals (calendar.js:27-29)",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "calendar_free"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a005",
+    "phrases": [
+     "When am I free tomorrow?",
+     "Find me a 2-hour block this week",
+     "What open time do I have Wednesday?",
+     "When could I fit in a gym session?"
+    ],
+    "intent": "Compute free gaps / find an open slot of a given length",
+    "data_needed": "blocks table + waking-hours preference; data exists, gap computation does not",
+    "coverage": "missing",
+    "coverage_note": "No gap/free-slot finder anywhere; scheduleAnswer (schedule.js:76) lists events only; freeBusy allowed in gapi.js:10 but never called",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [
+      "calendar_free"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a006",
+    "phrases": [
+     "Put dentist on my calendar Thursday at 2",
+     "Add a study block tomorrow 9 to 11",
+     "Schedule gym at 7am Monday",
+     "Block off Friday afternoon for the econ pset"
+    ],
+    "intent": "Create an event on his own calendar",
+    "data_needed": "Google Calendar POST on primary (calendar.events.owned); exists",
+    "coverage": "covered",
+    "coverage_note": "cal_create in calendar.js:32-36, createEvent calendar.js:58-61 (sendUpdates=none, no attendees), conflict + DST flags calendar.js:30; model schema conversation.js:53; approval via Telegram/web only (actions.js:14, voice.js:76). Limits: max 12h, timed events only (calendar.js:24)",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [],
+     "action": "cal_create",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a007",
+    "phrases": [
+     "Move my 3pm to 4",
+     "Push the study block to tomorrow morning",
+     "Reschedule gym to Saturday",
+     "Bump my Persian session an hour later"
+    ],
+    "intent": "Move/reschedule an existing event",
+    "data_needed": "blocks id + Calendar PATCH; exists",
+    "coverage": "partial",
+    "coverage_note": "cal_move calendar.js:37-42, moveEvent calendar.js:62-66 keeps duration, flags far moves and conflicts. But the model only sees blocks from -1d to +7d (conversation.js:49), so events 8-15+ days out cannot be targeted; events he doesn't own (invites) will 403 under events.owned",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "calendar_search"
+     ],
+     "action": "cal_move",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a008",
+    "phrases": [
+     "Make my study block 2 hours",
+     "Extend the meeting by 30 minutes",
+     "End the gym session at 8 instead",
+     "Shorten my 2pm to half an hour"
+    ],
+    "intent": "Change an event's duration",
+    "data_needed": "Calendar PATCH; exists",
+    "coverage": "covered",
+    "coverage_note": "cal_move accepts explicit end (calendar.js:38), model schema allows end (conversation.js:53)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a009",
+    "phrases": [
+     "Cancel my 4pm",
+     "Take the gym session off my calendar",
+     "Clear tonight",
+     "Remove the study block tomorrow"
+    ],
+    "intent": "Cancel an event (status cancelled, never delete)",
+    "data_needed": "Calendar PATCH status=cancelled; exists",
+    "coverage": "partial",
+    "coverage_note": "cal_cancel calendar.js:43-47, cancelEvent calendar.js:67-71 with 24h undo. Single event only: 'clear tonight' (bulk) needs one proposal per event; 7-day visibility limit (conversation.js:49); events organized by others cannot be cancelled (owned scope, and would notify organizer)",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "calendar_search"
+     ],
+     "action": "cal_cancel",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a010",
+    "phrases": [
+     "Undo that",
+     "Put it back",
+     "Actually never mind, restore it"
+    ],
+    "intent": "Undo a calendar change",
+    "data_needed": "action_undo table; exists",
+    "coverage": "covered",
+    "coverage_note": "undoCalendar calendar.js:73-82 via tasks.js:44-56 undoAction, Telegram Undo button telegram.js:130; 24h window",
+    "kind": "action",
+    "frequency": 3,
+    "route": "undo",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a011",
+    "phrases": [
+     "Rename my 3pm to 'Econ office hours'",
+     "Change the title of tomorrow's block",
+     "Call that event 'Dana coffee' instead"
+    ],
+    "intent": "Rename/edit title or notes of an existing event",
+    "data_needed": "Calendar PATCH summary; scope exists",
+    "coverage": "missing",
+    "coverage_note": "No cal_rename/cal_edit action; CALENDAR_ACTIONS (calendar.js:31-48) only create/move/cancel",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a012",
+    "phrases": [
+     "Add Persian every Tuesday and Thursday at 10",
+     "Make the gym block recurring",
+     "Put office hours on my calendar weekly for the quarter"
+    ],
+    "intent": "Create recurring events",
+    "data_needed": "Calendar POST with RRULE; scope exists",
+    "coverage": "missing",
+    "coverage_note": "createEvent sends only summary/start/end (calendar.js:59); no recurrence field in schema (conversation.js:53); move/cancel act on single instances since sync uses singleEvents=true (google.js:76)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a013",
+    "phrases": [
+     "Add it at Harper Library",
+     "Where is my 2pm?",
+     "What's the location of the interview?",
+     "Put the Zoom link on it"
+    ],
+    "intent": "Event location / details",
+    "data_needed": "Calendar event location+description; not stored (sync drops location, google.js:76) and links from calendar are untrusted",
+    "coverage": "partial",
+    "coverage_note": "Location is never synced (google.js:76 maps only id/summary/description/start/end/htmlLink) or set on create (calendar.js:59). Descriptions stored (service.js:83) but not given to model (conversation.js:49). Meeting links from event content are stripped by policy (conversation.js:19-23), so 'give me the Zoom link' is not_possible by design; location text could be added",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a014",
+    "phrases": [
+     "When's my dentist appointment?",
+     "When is the Club chapter meeting?",
+     "Do I have anything with Dana coming up?",
+     "When's my next econ lecture?"
+    ],
+    "intent": "Search events by name/keyword",
+    "data_needed": "blocks titles (15 days) + Calendar events.list with q= for further out; exists",
+    "coverage": "partial",
+    "coverage_note": "No code search; falls through to the model which sees only titles from -1d..+7d (conversation.js:49). Beyond 7 days unanswerable; no q= query in schedule.js:71-73",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     2
+    ],
+    "expect": {
+     "tools": [
+      "calendar_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a015",
+    "phrases": [
+     "Do I have any conflicts this week?",
+     "Am I double-booked anywhere?",
+     "Anything overlapping tomorrow?"
+    ],
+    "intent": "Detect overlapping events",
+    "data_needed": "blocks table; exists",
+    "coverage": "missing",
+    "coverage_note": "conflicts() (calendar.js:27) only runs inside proposal validation; no read answer for existing overlaps",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a016",
+    "phrases": [
+     "How busy am I this week?",
+     "How many hours of class do I have tomorrow?",
+     "How much free time do I have Friday?",
+     "How many meetings this week?"
+    ],
+    "intent": "Load / hours-scheduled summary",
+    "data_needed": "blocks table; exists",
+    "coverage": "missing",
+    "coverage_note": "scheduleAnswer lists events only (schedule.js:89-94); review.js:36-42 counts past blocks by status, not forward load",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a017",
+    "phrases": [
+     "What did I do last Tuesday?",
+     "What was on my calendar yesterday?",
+     "When did I last meet with my advisor?"
+    ],
+    "intent": "Look back at past calendar",
+    "data_needed": "live Calendar read for past dates; exists",
+    "coverage": "partial",
+    "coverage_note": "Specific past dates read live (schedule.js:68-74), but 'last Tuesday' parses as the upcoming Tuesday (schedule.js:48-50 only handles next/this/on); 'when did I last...' search is missing",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a018",
+    "phrases": [
+     "Remind me 30 minutes before my interview",
+     "Ping me before class",
+     "Give me a heads-up an hour before the 4pm"
+    ],
+    "intent": "Custom pre-event reminders",
+    "data_needed": "blocks + notify(); fixed 10-min reminder exists",
+    "coverage": "partial",
+    "coverage_note": "Only fixed 10-minute 'Starting soon' notice (core.js:15, service.js:136) plus finish/follow-up check-ins; no per-event custom lead time. A task_add reminder with due_at gets 24h/2h deadline notices only (service.js:143)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a019",
+    "phrases": [
+     "What's my day look like? (morning)",
+     "Give me tomorrow's rundown tonight",
+     "Send me my schedule every morning"
+    ],
+    "intent": "Daily briefing including calendar",
+    "data_needed": "blocks, weather, tasks; exists",
+    "coverage": "covered",
+    "coverage_note": "brief.js:19-29 morning brief lists today's blocks + weather (brief.js:28); evening brief with tomorrow's first block brief.js:53-70; scheduled notices service.js:152-156",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a020",
+    "phrases": [
+     "Give me a look at next week on Sunday",
+     "What's the week ahead?",
+     "Weekly preview please"
+    ],
+    "intent": "Proactive week-ahead calendar preview",
+    "data_needed": "blocks + live reads; exists",
+    "coverage": "partial",
+    "coverage_note": "On demand 'next week' works (schedule.js:40); weekly review (review.js:15-42) is backward-looking plan-vs-reality, no proactive forward week preview",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a021",
+    "phrases": [
+     "I finished the study block",
+     "Skipped gym today",
+     "Mark my 2pm done, took 90 minutes",
+     "I'm stuck on the pset block"
+    ],
+    "intent": "Check in on a calendar block",
+    "data_needed": "blocks status columns; exists",
+    "coverage": "covered",
+    "coverage_note": "checkin action actions.js:23-24, service.js:52-62 (calendar unchanged), finish/follow-up prompts core.js:16-17",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": "checkin",
+     "must_not": [
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a022",
+    "phrases": [
+     "Schedule my econ pset work before it's due",
+     "Put my assignments on the calendar",
+     "Block time for everything due this week"
+    ],
+    "intent": "Turn task deadlines into calendar work blocks",
+    "data_needed": "tasks.due_at + blocks; exists",
+    "coverage": "partial",
+    "coverage_note": "Model can propose individual cal_create using task context (conversation.js:49,53), but no slot-finding and one proposal per reply (single action), so bulk planning is not supported; prompt forbids automatic rescheduling",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a023",
+    "phrases": [
+     "Add the interview from that email to my calendar",
+     "Put the career fair from my inbox on my calendar",
+     "Did any email invite me to something?"
+    ],
+    "intent": "Create events from email content",
+    "data_needed": "mail_items (Gmail read) + cal_create; email content is untrusted",
+    "coverage": "missing",
+    "coverage_note": "Model context in converse() has no mail items (conversation.js:49-51); mail answers are separate code path (conversation.js:43). Must stay approval-gated and take times only, never links, from email",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a024",
+    "phrases": [
+     "Any pending invites?",
+     "Did someone invite me to something?",
+     "What haven't I responded to?"
+    ],
+    "intent": "List unanswered calendar invitations",
+    "data_needed": "Calendar events with self responseStatus=needsAction; readable today",
+    "coverage": "missing",
+    "coverage_note": "unaccepted() filters these out of sync and live reads (google.js:56, google.js:76, schedule.js:73); never surfaced",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a025",
+    "phrases": [
+     "Accept the invite from Dana",
+     "Decline the Club meeting",
+     "RSVP yes to the career event"
+    ],
+    "intent": "Respond to calendar invitations",
+    "data_needed": "Calendar PATCH attendees on others' events; sends a response email to organizer",
+    "coverage": "not_possible",
+    "coverage_note": "RSVP notifies the organizer (an outbound message) and edits events Jackson doesn't own; outside calendar.events.owned and the never-send rule (SAFETY.md; calendar.js:57 comment). Can only point him to Google Calendar",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a026",
+    "phrases": [
+     "Set up a meeting with Dana Tuesday",
+     "Invite Jake to study session",
+     "Send a calendar invite to my advisor"
+    ],
+    "intent": "Create event with attendees / invites",
+    "data_needed": "Calendar POST with attendees; sends invite emails",
+    "coverage": "not_possible",
+    "coverage_note": "Invites email people; createEvent deliberately sets no attendees and sendUpdates=none (calendar.js:57-59); system prompt says 'cannot invite anyone' (conversation.js:53). Alternative: create his own event + Gmail draft to a saved contact",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a027",
+    "phrases": [
+     "Anything all-day tomorrow?",
+     "When's Thanksgiving break on my calendar?",
+     "Am I traveling this weekend?",
+     "Whose birthday is this week?"
+    ],
+    "intent": "All-day events / holidays / trips",
+    "data_needed": "Calendar all-day events (start.date); readable today but filtered out",
+    "coverage": "missing",
+    "coverage_note": "Sync and live reads drop events without start.dateTime (google.js:76, schedule.js:73), so all-day events never appear; cal_create cannot make all-day events (calendar.js:20-26)",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a028",
+    "phrases": [
+     "What's on my UChicago calendar?",
+     "Check my school calendar too",
+     "Is the Club calendar showing anything?"
+    ],
+    "intent": "Read secondary/shared calendars",
+    "data_needed": "calendar.readonly covers other calendars; school slot has calendar:false",
+    "coverage": "missing",
+    "coverage_note": "Only primary calendar of the personal account is read (google.js:38-39,76; schedule.js:71); gapi.js:6-9 allowlists only calendars/primary",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a029",
+    "phrases": [
+     "When should I leave for my 3pm?",
+     "Will it rain during my walk to class?",
+     "What's the weather for Saturday's game?"
+    ],
+    "intent": "Travel time / weather tied to an event",
+    "data_needed": "event location (not synced) + weather.js; maps API absent",
+    "coverage": "missing",
+    "coverage_note": "No location data (google.js:76); weather.js:1 is Chicago daily only, used in morning brief (brief.js:28), not tied to events",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a030",
+    "phrases": [
+     "Is my calendar up to date?",
+     "When did you last sync my calendar?",
+     "Why don't you see my new event?"
+    ],
+    "intent": "Calendar sync health",
+    "data_needed": "sources table; exists",
+    "coverage": "partial",
+    "coverage_note": "Sync every 15 min (index.js:187, google.js:77), status in sources and web app (service.js:24,39); brief reports gaps (brief.js:24). No chat answer for 'when did you last sync' except via model reading sources in trusted context (conversation.js:49)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a031",
+    "phrases": [
+     "Add this by voice: lunch with Sam at noon",
+     "Hey Beacon, move my 3pm (on a phone call)",
+     "Cancel gym (said by voice)"
+    ],
+    "intent": "Calendar changes from phone voice",
+    "data_needed": "voice channel + Telegram approval; exists",
+    "coverage": "covered",
+    "coverage_note": "voice.js:76 sends calendar proposals to Telegram for approval (channelApproval, actions.js:14); by design never approved by voice",
+    "kind": "action",
+    "frequency": 2
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a032",
+    "phrases": [
+     "What application deadlines do I have coming up?",
+     "What's due for jobs this week?",
+     "Any internship deadlines soon?",
+     "When's the CIBC deadline?"
+    ],
+    "intent": "List upcoming application deadlines from the tracker plus career-category tasks",
+    "data_needed": "tracker/applications.md via GitHub (exists, tracker.js:19); tasks with category='career' (exists)",
+    "coverage": "partial",
+    "coverage_note": "Only /tracker slash command answers it by code (telegram.js:69, tracker.js:36-41). Natural-language chat goes to the model, whose context has only tasks/blocks + 4 fuzzy kbSearch snippets (conversation.js:49-51); tracker rows are not in context. isAssignmentQuery (schedule.js:101) is homework-only. Voice/web chat cannot reliably answer.",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a033",
+    "phrases": [
+     "Show me my tracker",
+     "Where am I on applications?",
+     "What applications are in progress?",
+     "How many have I submitted?"
+    ],
+    "intent": "Pipeline summary by status (found/approved/ready/submitted/interview/offer)",
+    "data_needed": "tracker rows (exists, tracker.js:9-19)",
+    "coverage": "partial",
+    "coverage_note": "/tracker in Telegram and web app Tasks > Applications (index.js:146) only; no converse() route, no counts by status (tracker.js:36-40 lists only first 10 in-progress orgs).",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a034",
+    "phrases": [
+     "I submitted the Piper Sandler app",
+     "Mark CIBC as submitted",
+     "Move Evercore to interview",
+     "I got rejected from Lazard, update the tracker"
+    ],
+    "intent": "Change an application's status in the tracker by chat/voice",
+    "data_needed": "tracker.md row + GitHub write (exists, tracker.js:29-34 setStatus)",
+    "coverage": "partial",
+    "coverage_note": "setStatus exists but only via web app POST /api/tracker/status (index.js:147). No tracker_status action in ACTIONS (actions.js:16-62) or converse(), so chat/voice/Telegram text cannot do it; model would at most add a task.",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     1
+    ],
+    "expect": {
+     "tools": [],
+     "action": "tracker_status",
+     "must_not": [
+      "task_change",
+      "draft"
+     ]
+    }
+   },
+   {
+    "id": "a035",
+    "phrases": [
+     "Add Goldman's summer analyst role to my tracker",
+     "Track this posting: Anduril BD intern, due Nov 1",
+     "Put the Boren scholarship on my list"
+    ],
+    "intent": "Add a new row to tracker/applications.md",
+    "data_needed": "GitHub write of tracker markdown (writeTracker exists, github.js)",
+    "coverage": "missing",
+    "coverage_note": "No add-row function in tracker.js (only withStatus edits an existing row, tracker.js:21-28); no action type. Workaround is an agent_task on the Mac (actions.js:56) which is Confirm tier and heavyweight.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a036",
+    "phrases": [
+     "Who do I need to follow up with?",
+     "Any outreach follow-ups due?",
+     "Who hasn't replied to me?",
+     "Who's waiting on a nudge?"
+    ],
+    "intent": "List outreach contacts sent 7-21 days ago with no reply",
+    "data_needed": "outreach table (exists, outreach.js:36 waiting())",
+    "coverage": "partial",
+    "coverage_note": "Pushed proactively: nudges at 7/14 days (outreach.js:40-47), career update Mon/Thu (brief.js:101-109), Sunday review (review.js:25-26), /career now (telegram.js:82). No on-demand chat answer: outreach table is not in converse() context (conversation.js:49-51).",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a037",
+    "phrases": [
+     "Did Dana ever reply?",
+     "Has Jack from the defense office emailed me?",
+     "Did anyone from Evercore get back to me?"
+    ],
+    "intent": "Check whether a specific outreach contact has replied",
+    "data_needed": "outreach.replied_at (set by Gmail triage, google.js:100, outreach.js:52-60); mail_items",
+    "coverage": "partial",
+    "coverage_note": "Reply detection exists (outreach.js:52) but no query path; isMailQuery excludes 'from X' (schedule.js:123) and model context has no outreach/mail rows, so the model can only guess from kb snippets of outreach.md.",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "email_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a038",
+    "phrases": [
+     "I emailed Sarah at CSIS today, log it",
+     "Add John Smith at Lazard to outreach, sent yesterday",
+     "I had a coffee chat with X, mark it met",
+     "Stop nudging me about Y"
+    ],
+    "intent": "Log/update an outreach contact or close a thread from chat",
+    "data_needed": "outreach table insert/update (importOutreach exists, admin-key only)",
+    "coverage": "missing",
+    "coverage_note": "Outreach rows only arrive via admin-key POST /api/import/outreach from scripts/import-outreach.mjs (index.js:109, outreach.js:17). No converse() action to add, mark met/closed, or snooze; CLOSED status regex (outreach.js:12) is only settable via import.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a039",
+    "phrases": [
+     "Draft a follow-up to Dana",
+     "Write a thank-you note to the recruiter I talked to",
+     "Draft a cold email to an alum at Blackstone",
+     "Write a nudge to Jack asking about the internship"
+    ],
+    "intent": "Draft outreach/follow-up/thank-you emails into Gmail Drafts",
+    "data_needed": "contacts table, Gmail drafts scope (exists, contacts.js sendDraft, gmaildraft.js)",
+    "coverage": "partial",
+    "coverage_note": "draft action works for saved contacts only (conversation.js:93-98, actions.js:37). Outreach people are in the outreach table, not contacts, so recipient must be added as a contact first; model lacks outreach context (sent date, prior thread) to write a good follow-up.",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "contacts_search"
+     ],
+     "action": "draft",
+     "must_not": [
+      "proposal",
+      "contact"
+     ]
+    }
+   },
+   {
+    "id": "a040",
+    "phrases": [
+     "Send the follow-up to Dana",
+     "Email the recruiter for me",
+     "Just send it"
+    ],
+    "intent": "Have Beacon send outreach email",
+    "data_needed": "gmail.send scope (deliberately not granted)",
+    "coverage": "not_possible",
+    "coverage_note": "SAFETY Never tier: Beacon never sends email (outreach.js:3, system prompt conversation.js:53). Draft only; Jackson presses Send.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a041",
+    "phrases": [
+     "Submit my application to CIBC",
+     "Fill out the Workday app for me",
+     "Apply to these for me"
+    ],
+    "intent": "Autonomous application submission",
+    "data_needed": "employer portals with his identity",
+    "coverage": "not_possible",
+    "coverage_note": "ARCHITECTURE.md section 4 and ROADMAP.md:227: submitting is never automated; Beacon preps packages only.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a042",
+    "phrases": [
+     "Prep an application for the Anduril role",
+     "Write me a cover letter for Piper Sandler",
+     "Tailor my resume bullets for this job",
+     "Get the package ready for CIBC"
+    ],
+    "intent": "Generate an application package (bullets, cover letter, questions)",
+    "data_needed": "scout_jobs row or tracker row; WORK_HISTORY / repo on Mac",
+    "coverage": "partial",
+    "coverage_note": "Scout 'Prep N' button builds a Confirm-tier agent_task (scout.js:16-21, telegram.js:121-126). For tracker rows or arbitrary roles, only a generic agent_task by chat ('run a workflow...', conversation.js:25,36-43) with no structured prep template; no automatic prep for status='approved' rows.",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "agent_task",
+     "must_not": [
+      "task_change",
+      "draft"
+     ]
+    }
+   },
+   {
+    "id": "a043",
+    "phrases": [
+     "Any new jobs?",
+     "What did the scout find this week?",
+     "Show me new internships",
+     "Any good roles at elite firms?"
+    ],
+    "intent": "On-demand list of recent scout finds",
+    "data_needed": "scout_jobs (exists)",
+    "coverage": "partial",
+    "coverage_note": "Pushed in Mon/Thu career update (brief.js:100, scout.js:157) and weekly review (review.js:27-28); web app shows last 25 (service.js:38). No chat/voice query; /jobs is Mac jobs, not scout (node.js:98).",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "scout_recent"
+     ],
+     "action": null,
+     "must_not": [
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a044",
+    "phrases": [
+     "Only show me elite firms",
+     "Lower the prestige bar to 3",
+     "What's my prestige cutoff?"
+    ],
+    "intent": "Adjust/inspect scout prestige threshold",
+    "data_needed": "preferences.prestigeMin (exists)",
+    "coverage": "partial",
+    "coverage_note": "/prestige N slash command only (telegram.js:74-79); natural language in converse() has no settings action.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a045",
+    "phrases": [
+     "How prestigious is Jefferies?",
+     "Is Govini a tier 4 or 5?",
+     "Add Hudson Institute to the elite list"
+    ],
+    "intent": "Look up or edit employer prestige tier",
+    "data_needed": "prestige.js lists + prestige_cache",
+    "coverage": "missing",
+    "coverage_note": "prestige() is internal to scout (prestige.js:13-21); no query path, and tier lists are hardcoded (prestige.js:5-8) so edits need a code change/agent_task.",
+    "kind": "read_answer",
+    "frequency": 1
+   },
+   {
+    "id": "a046",
+    "phrases": [
+     "Also look for roles at Shield AI",
+     "Add Jane Street to the scout",
+     "Stop showing me consulting jobs",
+     "Search for policy internships in DC too"
+    ],
+    "intent": "Change scout sources/queries/filters",
+    "data_needed": "BOARDS/AGGREGATORS constants (scout.js:23-45)",
+    "coverage": "missing",
+    "coverage_note": "Hardcoded in scout.js:23-45 and relevance() scout.js:97; only changeable via a code-change agent_task.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a047",
+    "phrases": [
+     "Not interested in that one",
+     "Hide the Citi posting",
+     "Approve the Anduril role for prep"
+    ],
+    "intent": "Triage a scout find (dismiss / approve) and move into tracker",
+    "data_needed": "scout_jobs + tracker",
+    "coverage": "partial",
+    "coverage_note": "Only the Prep button (telegram.js:121). No dismiss, no auto-add to tracker as 'found'/'approved' despite ARCHITECTURE.md:47 saying the rest go to the tracker.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a048",
+    "phrases": [
+     "Is the DC trek application open yet?",
+     "When does the DC trek open?",
+     "Any news on the trek?"
+    ],
+    "intent": "Status of DC trek application",
+    "data_needed": "watch_pages flagged='dc-trek' (fellowships.js:37); kb notes",
+    "coverage": "partial",
+    "coverage_note": "Proactive Telegram alert when the treks page looks open (fellowships.js:28,37), checked Wednesdays (fellowships.js:41-47). No on-demand query of watch_pages; model may answer 'Dec–Jan' only from kb snippet of outreach.md.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a049",
+    "phrases": [
+     "Remind me to apply to the DC trek when it opens",
+     "Put the trek deadline on my calendar",
+     "Add a task for the Truman application"
+    ],
+    "intent": "Create reminders/calendar holds for career deadlines",
+    "data_needed": "tasks (category career), calendar.events.owned",
+    "coverage": "covered",
+    "coverage_note": "task_add with category 'career' (actions.js:51, conversation.js:101-107) and cal_create via approval (system prompt conversation.js:53). Career tasks feed the career update (brief.js:102).",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": "task_add",
+     "must_not": [
+      "proposal",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a050",
+    "phrases": [
+     "Any fellowship deadlines I should know about?",
+     "When is the Truman deadline?",
+     "Did Fulbright change their dates?",
+     "What fellowships am I watching?"
+    ],
+    "intent": "Fellowship deadlines and page changes",
+    "data_needed": "watch_pages.dates (fellowships.js:30-38), events calendar",
+    "coverage": "partial",
+    "coverage_note": "Push-only: Telegram on page change (fellowships.js:36) and new UChicago CCRF/fellowship events (fellowships.js:55-67). watch_pages dates are never surfaced on request, and PAGES list is hardcoded (fellowships.js:11-21).",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a051",
+    "phrases": [
+     "Watch the Hudson fellowship page too",
+     "Add the CIA undergrad program to the fellowship watch",
+     "Track Schwarzman"
+    ],
+    "intent": "Add a fellowship/program page to the watch list",
+    "data_needed": "PAGES constant",
+    "coverage": "missing",
+    "coverage_note": "PAGES hardcoded in fellowships.js:11-21; no table-driven list or action.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a052",
+    "phrases": [
+     "Did I get any interview emails?",
+     "Any recruiter emails today?",
+     "Did CIBC confirm they got my application?",
+     "Any application updates in my inbox?"
+    ],
+    "intent": "Surface application/interview/recruiter email",
+    "data_needed": "mail_items with IMPORTANT classification (mail.js:22,56)",
+    "coverage": "partial",
+    "coverage_note": "Interview/application emails are classified notify and alerted (mail.js:22,56); generic 'any new email' is answered by code (schedule.js:121-123), but a filter for career/application mail or by sender is excluded ('from X' blocked, schedule.js:123) and the model has no mail context.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a053",
+    "phrases": [
+     "Schedule my interview with Evercore for Thursday at 2",
+     "Block time to prep for the Lazard superday",
+     "Add a coffee chat with Dana Friday at 10"
+    ],
+    "intent": "Put interviews/coffee chats/prep blocks on calendar",
+    "data_needed": "calendar.events.owned",
+    "coverage": "covered",
+    "coverage_note": "cal_create/cal_move proposals with approval (system prompt conversation.js:53; propose conversation.js:120-126).",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": "cal_create",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a054",
+    "phrases": [
+     "Accept the interview invite",
+     "Reply to the recruiter with my availability",
+     "RSVP to the info session"
+    ],
+    "intent": "Respond to recruiter/interview invites",
+    "data_needed": "gmail send / calendar respond (not granted)",
+    "coverage": "not_possible",
+    "coverage_note": "Calendar access is events.owned only and email sending is never allowed (SAFETY.md; conversation.js:53). Best possible: a Gmail draft to a saved contact.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a055",
+    "phrases": [
+     "Who should I reach out to this week?",
+     "Pick my 10 outreach names",
+     "Who's next on my outreach list?",
+     "How many outreach emails did I send this week?"
+    ],
+    "intent": "Weekly outreach quota and next targets",
+    "data_needed": "outreach table, Career_Plan/OUTREACH_AND_APPLICATIONS.md",
+    "coverage": "partial",
+    "coverage_note": "Sunday review only says 'Pick next week's 10 outreach names' (review.js:32) with no suggestions or count of sent-this-week; no chat answer beyond kb snippets.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a056",
+    "phrases": [
+     "Brief me on Dana before my call",
+     "What do I know about the person I'm meeting at 3?",
+     "Remind me what I talked about with Jack"
+    ],
+    "intent": "Pre-meeting person brief from notes and outreach history",
+    "data_needed": "kb (people/ notes), outreach rows, calendar block",
+    "coverage": "partial",
+    "coverage_note": "Model gets 4 kbSearch snippets of repo markdown (conversation.js:51, kb.js:24-27) plus calendar blocks; outreach rows and email threads are not supplied.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a057",
+    "phrases": [
+     "Give me my career update",
+     "What's the career picture right now?",
+     "Call me with the career update"
+    ],
+    "intent": "On-demand career digest (roles, follow-ups, deadlines)",
+    "data_needed": "scout_jobs, outreach, career tasks",
+    "coverage": "covered",
+    "coverage_note": "/career now (telegram.js:82) runs deliverCareer (brief.js:98-112) with optional phone call; scheduled Mon 11:30 / Thu 11:00. Not reachable by free-text chat or voice phrasing.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a058",
+    "phrases": [
+     "Am I eligible for the Piper Sandler role?",
+     "What does CIBC need in the application?",
+     "What's the next step on Goldman?"
+    ],
+    "intent": "Per-application detail (next step, notes, eligibility) from tracker",
+    "data_needed": "tracker Next step/Notes columns (parsed partially: tracker.js:15 keeps next, drops Notes)",
+    "coverage": "partial",
+    "coverage_note": "parseTracker keeps 'next' but drops Notes column (tracker.js:15); no per-row query path; model relies on kbSearch snippets of applications.md.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a059",
+    "phrases": [
+     "What's my GPA requirement situation?",
+     "Should I skip roles with GPA cutoffs?"
+    ],
+    "intent": "Filter or advise on options using GPA",
+    "data_needed": "grades (not in Beacon)",
+    "coverage": "not_possible",
+    "coverage_note": "Memory rule: never filter options on GPA; grades content is excluded from Beacon data (DATA.md). Beacon should decline to filter on GPA.",
+    "kind": "read_answer",
+    "frequency": 1
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a060",
+    "phrases": [
+     "what's due this week?",
+     "what assignments do I have coming up?",
+     "anything due Friday?",
+     "what homework do I have?"
+    ],
+    "intent": "List upcoming school deadlines in a date range",
+    "data_needed": "tasks table (category='school', due_at) — exists; populated via /api/sync/tasks",
+    "coverage": "covered",
+    "coverage_note": "schedule.js:101 isAssignmentQuery + schedule.js:103-117 assignmentsAnswer (code, no model), routed at conversation.js:46. Caveat: tasks only arrive via POST /api/sync/tasks (index.js:116); no importer script for fall-2026-classes/*/tracker.csv exists in gateway/scripts, so freshness depends on a manual/external push",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:assignments",
+    "eval_phrases": [
+     0,
+     1,
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a061",
+    "phrases": [
+     "what's due for econ?",
+     "anything due in Persian this week?",
+     "what do I have for Russian history?",
+     "art games deadlines?"
+    ],
+    "intent": "Deadlines filtered to one course",
+    "data_needed": "tasks need a course field (tasks table has only category school/persian/...; course is only implicit in title); tracker.csv per course exists locally",
+    "coverage": "partial",
+    "coverage_note": "isAssignmentQuery fires (schedule.js:101) but assignmentsAnswer has no course filter (schedule.js:108-109): returns all due tasks for the window. Persian has its own category (service.js:45) but SCHOOL regex forces category='school' when 'class'/'homework' appear (schedule.js:108)",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a062",
+    "phrases": [
+     "when is homework 3 due?",
+     "when's the econ problem set due?",
+     "when is my Persian quiz?"
+    ],
+    "intent": "Look up one specific assignment's due date by name",
+    "data_needed": "tasks table title search",
+    "coverage": "partial",
+    "coverage_note": "Routed to assignmentsAnswer (schedule.js:101) which ignores the named item and lists the generic 7-day window (schedule.js:105); an item due in 3 weeks is never found. No title match in code",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a063",
+    "phrases": [
+     "when is my midterm?",
+     "when's the econ final?",
+     "do I have any exams coming up?",
+     "when are my finals?"
+    ],
+    "intent": "Exam dates, often weeks away",
+    "data_needed": "tasks/tracker rows for exams, course calendar/ syllabus dates (fall-2026-classes/*/calendar, syllabus) — exist locally, not imported",
+    "coverage": "partial",
+    "coverage_note": "HOMEWORK regex matches exams/midterms (schedule.js:100) but window defaults to 7 days (schedule.js:105) and no name match; finals beyond 7 days return 'nothing open'. Model fallback only sees 25 tasks (conversation.js:49)",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "fast:assignments",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a064",
+    "phrases": [
+     "what's overdue?",
+     "am I behind on anything?",
+     "what did I miss turning in?",
+     "anything late?"
+    ],
+    "intent": "Past-due open school work",
+    "data_needed": "tasks table",
+    "coverage": "partial",
+    "coverage_note": "Late list only computed in wide mode of assignmentsAnswer (schedule.js:110-113). 'overdue' does not match \\bdue\\b in HOMEWORK (schedule.js:100), so 'what's overdue?' falls to the model with the 25-task context (conversation.js:49) instead of code",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a065",
+    "phrases": [
+     "do I have class Friday?",
+     "when's my next class?",
+     "what time is Persian tomorrow?",
+     "what's my schedule today?"
+    ],
+    "intent": "Class meeting times from calendar",
+    "data_needed": "Google Calendar primary (synced 15 days, live beyond) — exists",
+    "coverage": "covered",
+    "coverage_note": "schedule.js:11 STRONG includes class/lecture; scheduleAnswer schedule.js:76-95; live read beyond sync window schedule.js:68-74. Only primary personal calendar is read (schedule.js:71), so classes on a separate UChicago calendar would be missed",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:schedule",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a066",
+    "phrases": [
+     "I turned in homework 1",
+     "mark the econ pset done",
+     "I submitted the essay",
+     "done with the Persian quiz"
+    ],
+    "intent": "Mark an assignment complete",
+    "data_needed": "tasks table",
+    "coverage": "covered",
+    "coverage_note": "DONE_TALK keeps it out of the code path (schedule.js:99); model returns task_done (conversation.js:53), applied Auto tier with undo (tasks.js:39, conversation.js:101-107). Limit: model only sees first 25 open tasks (conversation.js:49), so a task past that can't be matched",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     1
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search"
+     ],
+     "action": "task_done",
+     "must_not": [
+      "proposal"
+     ]
+    }
+   },
+   {
+    "id": "a067",
+    "phrases": [
+     "add the Persian essay due Thursday at 5",
+     "remind me to do the reading for Russian history",
+     "new assignment: econ pset 4 due next Friday"
+    ],
+    "intent": "Capture a new school task with deadline",
+    "data_needed": "tasks table",
+    "coverage": "covered",
+    "coverage_note": "task_add action (actions.js:51, tasks.js:32-37) with category school/persian; deadline notifications at 24h and 2h (service.js:139-143)",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "task_add",
+     "must_not": [
+      "proposal"
+     ]
+    }
+   },
+   {
+    "id": "a068",
+    "phrases": [
+     "the econ homework got pushed to Monday",
+     "change the due date on pset 3",
+     "I got an extension on the paper",
+     "move that deadline"
+    ],
+    "intent": "Edit an existing task's due date/title",
+    "data_needed": "tasks table update",
+    "coverage": "missing",
+    "coverage_note": "Only task_add, task_done, task_priority exist (actions.js:51-54, tasks.js:31-42); no task_edit/due change action. Re-importing from tracker would also only update if source matches (service.js:47)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a069",
+    "phrases": [
+     "block two hours tomorrow to study for the midterm",
+     "put study time for econ on my calendar",
+     "schedule a work session for the essay Wednesday at 3"
+    ],
+    "intent": "Create study blocks on Google Calendar",
+    "data_needed": "calendar.events.owned write — exists",
+    "coverage": "covered",
+    "coverage_note": "cal_create proposal with approval (conversation.js:53 schema, propose conversation.js:120-126)",
+    "kind": "action",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "calendar_free"
+     ],
+     "action": "cal_create",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a070",
+    "phrases": [
+     "help me plan my week around my deadlines",
+     "make me a study plan for the midterm",
+     "how should I split up the paper before it's due?"
+    ],
+    "intent": "Multi-step study/work plan across days and calendar",
+    "data_needed": "tasks + blocks + exam dates beyond 7 days",
+    "coverage": "partial",
+    "coverage_note": "Model can reason over 7 days of blocks and 25 tasks (conversation.js:49) and propose one cal_create at a time; no multi-event batch proposal and no visibility past 7 days of calendar",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a071",
+    "phrases": [
+     "what's the reading for Russian history tomorrow?",
+     "what do I need to read before class?",
+     "which chapter is due for econ?"
+    ],
+    "intent": "Readings tied to upcoming class sessions",
+    "data_needed": "fall-2026-classes/*/syllabus and calendar files — exist locally but outside Beacon repo",
+    "coverage": "missing",
+    "coverage_note": "kb-index only walks the Beacon folder (gateway/scripts/kb-index.mjs:11-13 ROOT=Beacon); tasks only contain tracker items; nothing maps readings to class dates",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a072",
+    "phrases": [
+     "when are office hours for econ?",
+     "where is my professor's office hours?",
+     "does the TA have office hours today?"
+    ],
+    "intent": "Office hours times/locations",
+    "data_needed": "syllabus files (local, not indexed) or calendar events if he added them",
+    "coverage": "partial",
+    "coverage_note": "Only answerable if office hours are on his calendar; 'office hours' is not in STRONG/WEAK (schedule.js:11-12) so goes to model with 7-day blocks. Syllabi not in KB (kb-index.mjs:11)",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a073",
+    "phrases": [
+     "send me the Persian syllabus",
+     "pull up the econ problem set",
+     "send me the Russian history reading"
+    ],
+    "intent": "Get a course file to his phone",
+    "data_needed": "fall-2026-classes files on Mac",
+    "coverage": "partial",
+    "coverage_note": "send_file exists but only from the Beacon folder (conversation.js:53 system prompt 'from the Beacon folder'); course materials live in ~/Jackson Mackney/fall-2026-classes, outside that scope",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a074",
+    "phrases": [
+     "anything new from Canvas?",
+     "did my professor post an announcement?",
+     "any Canvas notifications today?"
+    ],
+    "intent": "Canvas announcements/updates via notification emails",
+    "data_needed": "mail_items (sender, subject, level) from UChicago Gmail — exists; Canvas API blocked (ARCHITECTURE.md:61)",
+    "coverage": "partial",
+    "coverage_note": "isMailQuery requires an email word and rejects 'from X' (schedule.js:123), so 'anything from Canvas' falls to the model which has no mail context. Canvas noreply mail is likely classified 'ignore' as bulk (mail.js:59) and hidden from mailAnswer (schedule.js:128 excludes ignore). No sender filter",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a075",
+    "phrases": [
+     "did a due date change on Canvas?",
+     "was the econ assignment updated?",
+     "turn Canvas emails into tasks"
+    ],
+    "intent": "Auto-capture new/changed assignments from Canvas notification emails",
+    "data_needed": "Canvas notification email metadata (subject/snippet) — available; parser to tasks — not built",
+    "coverage": "missing",
+    "coverage_note": "mail.js:22 IMPORTANT flags 'assignment changed/updated' and 'due date' as notify alerts, but nothing creates or updates tasks from them (ROADMAP.md:110 lists this as fallback source, not built). Must treat email as untrusted (no links/instructions)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a076",
+    "phrases": [
+     "did my professor email me back?",
+     "any email from my TA?",
+     "did Professor X reply about the extension?"
+    ],
+    "intent": "Find mail from a specific school sender",
+    "data_needed": "mail_items sender/subject",
+    "coverage": "partial",
+    "coverage_note": "Replies in his threads trigger notify alerts (mail.js:57) and UChicago personal mail notifies (mail.js:58), but on-demand lookup by sender is excluded from code path (schedule.js:123 'from' guard) and the model gets no mail context (conversation.js:49-51)",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a077",
+    "phrases": [
+     "email my professor asking for an extension",
+     "draft a note to my TA that I'll miss section",
+     "write to Professor X about office hours"
+    ],
+    "intent": "Draft email to instructor (he sends it)",
+    "data_needed": "contacts table, Gmail drafts (school account) — exists",
+    "coverage": "covered",
+    "coverage_note": "draft action with account 'school' to saved contacts only (actions.js:38, conversation.js:93-99, contacts.js sendDraft). Professor must be a saved contact first; Beacon never sends",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "contacts_search"
+     ],
+     "action": "draft",
+     "must_not": [
+      "proposal",
+      "contact"
+     ]
+    }
+   },
+   {
+    "id": "a078",
+    "phrases": [
+     "what's my grade in econ?",
+     "what did I get on the midterm?",
+     "what's my GPA?",
+     "how am I doing in Persian?"
+    ],
+    "intent": "Grades / academic standing",
+    "data_needed": "Canvas gradebook (API blocked), grade emails (subject deliberately not stored), tracker.csv grade column (local, not imported)",
+    "coverage": "not_possible",
+    "coverage_note": "School records are C3/C4: grade mail is flagged only, never summarized or sent to a model (mail.js:20-21, mail.js:45), subject replaced with '[school record — open it directly]' (google.js:97-98). Canvas API blocked (ARCHITECTURE.md:61). Should stay out by design",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a079",
+    "phrases": [
+     "did I get a grade back?",
+     "anything from the registrar?",
+     "any school record emails?"
+    ],
+    "intent": "Know a grade/registrar email arrived without content",
+    "data_needed": "mail_items level notify with school flag",
+    "coverage": "covered",
+    "coverage_note": "Rule triage marks verified uchicago grade/registrar mail as notify with generic alert (mail.js:45), surfaced in mailAnswer 'needs you' as '[school record — open it directly]' (google.js:98, schedule.js:136)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a080",
+    "phrases": [
+     "how much is the final worth?",
+     "how many points is homework 2?",
+     "what's the grading breakdown for econ?"
+    ],
+    "intent": "Assignment weights/points",
+    "data_needed": "tracker.csv points column and syllabus — local only, not imported (capture() has no points field, service.js:41-49)",
+    "coverage": "missing",
+    "coverage_note": "No points/weight field in tasks; syllabi not indexed (kb-index.mjs:11)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a081",
+    "phrases": [
+     "did I submit homework 1?",
+     "have I turned in the essay yet?",
+     "is the pset marked submitted?"
+    ],
+    "intent": "Submission status of an assignment",
+    "data_needed": "tasks.status; tracker.csv status/submitted_on; Canvas submission (blocked)",
+    "coverage": "partial",
+    "coverage_note": "Model can see task status for 25 open tasks (conversation.js:49) but done tasks are filtered out of model context, and the prompt says a completed block does not prove submission (conversation.js:53). No code-path lookup",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a082",
+    "phrases": [
+     "what's on my plate for school tomorrow?",
+     "give me a rundown of classes and homework today",
+     "what do I need to do for class today?"
+    ],
+    "intent": "Combined classes + deadlines view for a day",
+    "data_needed": "blocks + tasks",
+    "coverage": "partial",
+    "coverage_note": "Morning brief combines deadlines (brief.js:22-31) on schedule; on demand, 'what's due' hits assignments only (conversation.js:46 runs before schedule at :47) and 'schedule' hits calendar only; no merged answer",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a083",
+    "phrases": [
+     "remind me an hour before my exam",
+     "call me the night before the midterm",
+     "ping me when the pset is due tomorrow"
+    ],
+    "intent": "Custom-timed deadline reminders",
+    "data_needed": "tasks.due_at, notify/Telegram",
+    "coverage": "partial",
+    "coverage_note": "Fixed 24h and 2h deadline notices for confirmed tasks (service.js:139-143); no custom offset or per-task call reminder",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a084",
+    "phrases": [
+     "how much Persian have I studied this week?",
+     "am I on track for Persian hours?",
+     "log 45 minutes of Persian"
+    ],
+    "intent": "Track study time against weekly target",
+    "data_needed": "checkins actual_minutes, persianWeeklyTargetHours",
+    "coverage": "partial",
+    "coverage_note": "Model receives persianWeeklyTargetHours:6 (conversation.js:49) and checkin action records actual_minutes (actions.js:23), but no code computes week-to-date totals for the model",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a085",
+    "phrases": [
+     "quiz me on Persian vocab",
+     "what were the key points from last econ lecture?",
+     "summarize my Russian history notes"
+    ],
+    "intent": "Study help using course materials",
+    "data_needed": "fall-2026-classes vocab/, notes/, lectures/ — local, outside KB",
+    "coverage": "missing",
+    "coverage_note": "KB covers only Beacon-folder markdown (kb-index.mjs:11-13, kb.js:5); course notes never reach the model. agent_task on the Mac could do it with confirmation (actions.js:57)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a086",
+    "phrases": [
+     "what's the last day to drop a class?",
+     "when does registration open?",
+     "when is finals week?"
+    ],
+    "intent": "Academic calendar / registrar dates",
+    "data_needed": "UChicago academic calendar (public web) — not stored",
+    "coverage": "missing",
+    "coverage_note": "No academic-calendar data source; model told to use only supplied context (conversation.js:53)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a087",
+    "phrases": [
+     "make econ homework high priority",
+     "deprioritize the art games reading",
+     "what school thing should I work on now?"
+    ],
+    "intent": "Prioritize school work / what next",
+    "data_needed": "tasks priority, blocks",
+    "coverage": "covered",
+    "coverage_note": "task_priority action (tasks.js:40-41, actions.js:54); WHATS_NEXT code answer (tasks.js:11,15-24) gives current block + top task (not school-specific)",
+    "kind": "action",
+    "frequency": 3
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a088",
+    "phrases": [
+     "am I free before my econ pset is due?",
+     "when can I work on the pset before it's due",
+     "do I have time to finish the essay before Friday",
+     "how much free time do I have before my midterm"
+    ],
+    "intent": "Cross calendar free time against a specific task's due date",
+    "data_needed": "tasks.due_at (exists) + blocks/Google Calendar events (exists); free-gap computation does not exist",
+    "coverage": "partial",
+    "coverage_note": "'am i free' hits STRONG in schedule.js:11 so isScheduleQuery (schedule.js:17) wins; parseRange (schedule.js:29-53) finds no date and returns today's events only. The pset due date is never looked up, and no code computes gaps between events.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     2
+    ],
+    "expect": {
+     "tools": [
+      "calendar_free",
+      "tasks_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a089",
+    "phrases": [
+     "prep me for tomorrow",
+     "what do I need to know for tomorrow",
+     "get me ready for tomorrow",
+     "what's tomorrow look like and what's due"
+    ],
+    "intent": "Combined next-day briefing: calendar, deadlines, email that needs action, weather",
+    "data_needed": "blocks, tasks, mail_items, weather (all exist; the evening brief in brief.js:33-39 already builds most of this)",
+    "coverage": "partial",
+    "coverage_note": "'prep me for tomorrow' matches no regex, so it goes to the model at conversation.js:48-53. The model gets only blocks and tasks, not mail_items or weather. 'what's tomorrow look like and what's due' goes to isAssignmentQuery first (conversation.js:46) and returns deadlines only, no schedule.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     3
+    ],
+    "expect": {
+     "tools": [
+      [
+       "calendar_search",
+       "day_brief"
+      ],
+      "tasks_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a090",
+    "phrases": [
+     "give me my morning brief",
+     "brief me",
+     "what's my day look like",
+     "run the brief now"
+    ],
+    "intent": "Get the morning brief on demand from chat or voice",
+    "data_needed": "buildBrief (brief.js:17) exists",
+    "coverage": "partial",
+    "coverage_note": "The brief runs on a schedule, and on demand only through POST /api/brief from the web app (index.js:110). Telegram has no /brief command (telegram.js:93 help text). Chat 'brief me' goes to the model without mail or weather. 'how does today look' gets the schedule only (schedule.js:12).",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      [
+       "day_brief",
+       "calendar_search"
+      ]
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a091",
+    "phrases": [
+     "what did I miss today",
+     "catch me up",
+     "anything I need to know",
+     "what happened while I was in class"
+    ],
+    "intent": "Catch-up across email, Club Announcements, calendar changes and new deadlines",
+    "data_needed": "mail_items (exists), notifications table with groupme alerts (exists), tasks created_at (exists)",
+    "coverage": "partial",
+    "coverage_note": "isMailQuery (schedule.js:123) requires an email word, so plain 'catch me up' goes to the model. The model context (conversation.js:49) has no mail_items and no notifications, so Club alerts from groupme.js:80 can't be reached from chat.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      [
+       "mail_status",
+       "email_search"
+      ],
+      [
+       "calendar_search",
+       "day_brief"
+      ]
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a092",
+    "phrases": [
+     "weekly recap",
+     "how did my week go",
+     "give me my weekly review",
+     "recap the week"
+    ],
+    "intent": "On-demand weekly recap: plan vs reality, deadlines, email, outreach",
+    "data_needed": "buildReview / planVsReality (review.js:14-40) exist",
+    "coverage": "partial",
+    "coverage_note": "buildReview only runs Sunday in tick (service.js:158-162). Chat or voice can't trigger it; the model at conversation.js:53 has blocks from only the last 24h and no completed tasks.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a093",
+    "phrases": [
+     "what's my week look like",
+     "plan my week",
+     "what's coming up this week, classes and deadlines",
+     "walk me through next week"
+    ],
+    "intent": "Week view combining calendar and deadlines",
+    "data_needed": "blocks + tasks (exist)",
+    "coverage": "partial",
+    "coverage_note": "'this week' with 'schedule' or 'upcoming' gives calendar only (schedule.js:76-95). 'due' or 'deadlines' gives tasks only (schedule.js:103-117). The two are never merged. 'plan my week' goes to the model, which can return only one action per turn (conversation.js:53).",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a094",
+    "phrases": [
+     "find time to work on the econ pset and block it",
+     "schedule study time before my exam",
+     "put two hours for the essay before it's due",
+     "block off time for Persian this week"
+    ],
+    "intent": "Find a free slot before a deadline and propose a calendar block",
+    "data_needed": "tasks.due_at, blocks, cal_create proposal (exist); free-slot finder missing",
+    "coverage": "partial",
+    "coverage_note": "The model can propose cal_create (conversation.js:53) with approval. The ACTION regex at schedule.js:9 sends these past the code answers. Slot choice is left to the model, which sees 7 days of blocks; there is no code free/busy search.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a095",
+    "phrases": [
+     "do I have time for the gym between classes",
+     "when's my next free afternoon",
+     "any gaps today",
+     "when am I free tomorrow"
+    ],
+    "intent": "Free-gap query across the calendar",
+    "data_needed": "blocks/Google events (exist)",
+    "coverage": "partial",
+    "coverage_note": "scheduleAnswer (schedule.js:76-95) lists events but never computes gaps. 'am I free' returns the event list, not open windows.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a096",
+    "phrases": [
+     "am I behind on anything",
+     "what's overdue",
+     "what did I let slip",
+     "anything past due"
+    ],
+    "intent": "Overdue tasks plus unresolved blocks",
+    "data_needed": "tasks, blocks.status (exist)",
+    "coverage": "partial",
+    "coverage_note": "Past-due tasks appear only through isAssignmentQuery with a homework or 'due' word (schedule.js:110-113). 'am I behind' goes to the model with tasks only. Unresolved blocks are in the evening brief only (brief.js:34-36).",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a097",
+    "phrases": [
+     "any emails from my econ professor?",
+     "did anyone email about the pset deadline?",
+     "is there an email about my interview?",
+     "what did Canvas say about the assignment"
+    ],
+    "intent": "Targeted email lookup tied to a course, person or deadline",
+    "data_needed": "mail_items sender/subject (exists, no bodies); Canvas notification emails stored as mail_items",
+    "coverage": "missing",
+    "coverage_note": "isMailQuery explicitly excludes 'about|regarding|from' (schedule.js:123), so these go to the model, and conversation.js:49-51 never supplies mail_items. A sender/subject search over mail_items is safe and missing.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "email_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a098",
+    "phrases": [
+     "did any deadlines change?",
+     "did my professor move the due date?",
+     "any Canvas updates on my assignments",
+     "are my deadlines still right"
+    ],
+    "intent": "Cross-check Canvas or professor notification emails against the tasks table",
+    "data_needed": "mail_items flagged notify by classifyMail's 'assignment changed' rule (core.js:23) + tasks",
+    "coverage": "missing",
+    "coverage_note": "classifyMail tags these as notify (core.js:23), but nothing links mail_items to tasks, and chat can't query them. The Canvas API is blocked, so only notification emails can be used.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a099",
+    "phrases": [
+     "add any deadlines from today's email to my tasks",
+     "turn that email into a task",
+     "anything in my inbox I should add as a to-do"
+    ],
+    "intent": "Create tasks from email content",
+    "data_needed": "mail_items subject (exists); bodies are not stored",
+    "coverage": "missing",
+    "coverage_note": "There is no mail→task path. task_add (conversation.js:53, tasks.js:32) takes only Jackson's words. Email is untrusted (SAFETY), so this would need subject-only, user-confirmed task creation.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a100",
+    "phrases": [
+     "anything from Club this week?",
+     "what did Club announce",
+     "any chapter stuff I need to know"
+    ],
+    "intent": "Recall Club Announcements alongside schedule",
+    "data_needed": "notifications rows with kind='groupme' (exist)",
+    "coverage": "missing",
+    "coverage_note": "groupme.js:80 writes notify rows, but converse's compact context (conversation.js:49) drops notifications and no code answer reads them.",
+    "kind": "read_answer",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "groupme_recent"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a101",
+    "phrases": [
+     "what's next and what do I need for it",
+     "prep me for my next meeting",
+     "who am I meeting and what's it about",
+     "anything I should read before my 2pm"
+    ],
+    "intent": "Next event plus related notes or emails",
+    "data_needed": "blocks, kbSearch notes (exist), mail_items by attendee/sender (exists)",
+    "coverage": "partial",
+    "coverage_note": "whatsNext (tasks.js:15-24) gives the current and next block but only matches the exact WHATS_NEXT phrasing (tasks.js:11). The morning brief attaches related notes (brief.js:126-128). Chat gets kbSearch on the message text (conversation.js:51), but no emails from the person.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a102",
+    "phrases": [
+     "what did I get done today",
+     "how did today go",
+     "end of day summary",
+     "what's left for tonight"
+    ],
+    "intent": "Evening recap of blocks and tasks done today plus tonight's open items",
+    "data_needed": "blocks.status, tasks completed_at (exist)",
+    "coverage": "partial",
+    "coverage_note": "The evening brief (brief.js:33-39) is scheduled only. In chat the model context drops done tasks (conversation.js:49 filters status!=='done'), so it can't say what was completed.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a103",
+    "phrases": [
+     "how am I doing on Persian this week",
+     "am I hitting my 6 hours",
+     "how much did I study this week"
+    ],
+    "intent": "Plan vs reality for a category this week",
+    "data_needed": "planVsReality (review.js:33+) exists",
+    "coverage": "partial",
+    "coverage_note": "The model gets persianWeeklyTargetHours and blocks only from the last 24h (conversation.js:49). planVsReality runs only in the Sunday review (service.js:162).",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a104",
+    "phrases": [
+     "I'm running late, let my 2pm know",
+     "tell my professor I'll miss class",
+     "email the TA that I'm sick and move my study block"
+    ],
+    "intent": "Tell a meeting/class someone and adjust the calendar",
+    "data_needed": "contacts, gmail drafts, cal_move (exist)",
+    "coverage": "partial",
+    "coverage_note": "Beacon never sends. It can only write a Gmail draft to a saved contact (conversation.js:93-98) and propose cal_move (conversation.js:53), one action per turn, so the combined request takes two turns. Sending is not_possible by policy.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a105",
+    "phrases": [
+     "send the email to my professor for me",
+     "just send it",
+     "reply to that email and accept the meeting"
+    ],
+    "intent": "Send an email or RSVP on his behalf",
+    "data_needed": "Gmail send / calendar respond (not granted)",
+    "coverage": "not_possible",
+    "coverage_note": "Hard rule: Beacon never sends email, and Google scope is drafts plus calendar.events.owned only (system prompt at conversation.js:53). It can only draft for him to send.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a106",
+    "phrases": [
+     "did I submit the pset?",
+     "what's my grade in econ",
+     "did my assignment go through on Canvas"
+    ],
+    "intent": "Submission or grade status from Canvas",
+    "data_needed": "Canvas API (blocked by UChicago)",
+    "coverage": "not_possible",
+    "coverage_note": "The Canvas API is blocked, and grade content is out of bounds. The system prompt says 'A completed block does not prove submission' (conversation.js:53). Only Canvas notification emails could hint at it.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a107",
+    "phrases": [
+     "does anything conflict this week?",
+     "is anything double-booked",
+     "will the new interview clash with class"
+    ],
+    "intent": "Detect calendar conflicts, including against task work blocks",
+    "data_needed": "blocks (exist)",
+    "coverage": "partial",
+    "coverage_note": "Conflict math exists only on cal_create/cal_move proposal cards (ROADMAP.md:143, calendar.js). There is no read-only 'any conflicts' answer in schedule.js.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a108",
+    "phrases": [
+     "do I need an umbrella for class?",
+     "what's the weather when I walk to my 9am",
+     "should I bike to class tomorrow"
+    ],
+    "intent": "Weather combined with the schedule",
+    "data_needed": "chicagoWeather (weather.js:3) exists",
+    "coverage": "partial",
+    "coverage_note": "Weather appears only in the morning brief (brief.js:28,58). Chat has no weather data (conversation.js:49), so the model can't answer.",
+    "kind": "read_answer",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "weather",
+      [
+       "calendar_search",
+       "day_brief"
+      ]
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a109",
+    "phrases": [
+     "any interviews or career deadlines this week and are they on my calendar",
+     "career update now",
+     "what follow-ups do I owe and when can I do them"
+    ],
+    "intent": "Career items across email, tasks, outreach and calendar",
+    "data_needed": "tasks category=career, outreach.waiting, mail_items notify, blocks (exist)",
+    "coverage": "partial",
+    "coverage_note": "deliverCareer (brief.js:98-112) is reachable through Telegram '/career now' (telegram.js:82), but it doesn't check whether items are on the calendar. Chat can't see outreach or mail_items.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a110",
+    "phrases": [
+     "remind me the night before my exam",
+     "ping me an hour before the pset is due",
+     "remind me to leave for my interview"
+    ],
+    "intent": "Timed reminder tied to a deadline or event",
+    "data_needed": "tasks.due_at, notifications/tick (exist); per-task reminder scheduling missing",
+    "coverage": "partial",
+    "coverage_note": "'remind me' becomes task_add with due_at (conversation.js:53, tasks.js:32-36). Block start notices exist (core.js:11-18), but there is no custom offset reminder for a task due date.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a111",
+    "phrases": [
+     "what's due tomorrow and is anything in my email about it",
+     "anything new on school email and what's due",
+     "school update"
+    ],
+    "intent": "School-only roll-up: uchicago inbox, school tasks, classes",
+    "data_needed": "mail_items account=school, tasks category=school, blocks (exist)",
+    "coverage": "partial",
+    "coverage_note": "Each part works on its own (mailAnswer schedule.js:142, assignmentsAnswer schedule.js:103), but routing at conversation.js:45-47 returns the first match only, so a combined question gets one domain.",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search",
+      [
+       "email_search",
+       "mail_status"
+      ]
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a112",
+    "phrases": [
+     "what should I do with the next hour",
+     "I have 2 hours free, what should I work on",
+     "what's the most urgent thing right now"
+    ],
+    "intent": "Pick a task that fits the current free window and nearest deadline",
+    "data_needed": "blocks, tasks priority/due (exist)",
+    "coverage": "partial",
+    "coverage_note": "whatsNext (tasks.js:15-24) gives the top task by priority and due date but ignores how much time is free before the next block. Phrasings like 'I have 2 hours' miss WHATS_NEXT (tasks.js:11) and go to the model.",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a113",
+    "phrases": [
+     "move my study block since the meeting got added",
+     "clear my evening for the event",
+     "reschedule my work blocks around the interview"
+    ],
+    "intent": "Rearrange several calendar items after a new commitment",
+    "data_needed": "blocks, cal_move (exist)",
+    "coverage": "partial",
+    "coverage_note": "cal_move goes through approval (conversation.js:53, 114), but only one action per model turn. The system prompt forbids automatic rescheduling, so multi-item rearranging needs one approval per move.",
+    "kind": "action",
+    "frequency": 2
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a114",
+    "phrases": [
+     "and Friday?",
+     "what about tomorrow",
+     "and next week?",
+     "how about Thursday then"
+    ],
+    "intent": "Elliptical follow-up that changes only the date of the previous schedule/assignment/email question",
+    "data_needed": "Previous turn's query type (schedule/assignments/mail) plus new date; blocks + tasks + mail_items exist",
+    "coverage": "partial",
+    "coverage_note": "isScheduleQuery needs STRONG or WEAK+DATEWORD (schedule.js:11-17), so 'and Friday?' falls to the model. Code-answered replies return before the messages INSERT (conversation.js:32-47 vs :74), so history (conversation.js:52) has no record of the prior schedule/mail/assignment question; model only has 7 days of blocks (conversation.js:49) and no mail. Need a last-intent memo so bare date follow-ups rerun the same code path.",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a115",
+    "phrases": [
+     "read the first one",
+     "what's the second one say",
+     "open the one from the registrar",
+     "tell me more about that email"
+    ],
+    "intent": "Drill into an item from a list just read aloud (email, task, event) by ordinal or sender",
+    "data_needed": "Ordered list from the last answer; email body (not stored: mail_items has sender/subject/level only, google.js:98)",
+    "coverage": "missing",
+    "coverage_note": "mailAnswer (schedule.js:142-153) produces no indexed list and nothing is saved to messages; mail bodies never stored and school records replaced with placeholder subject (google.js:98). Could support ordinal reference for subject/sender/reason only; reading bodies would need a live read-only Gmail fetch treated as untrusted data.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a116",
+    "phrases": [
+     "remind me later",
+     "remind me in 20 minutes",
+     "remind me at 5 to call mom",
+     "ping me about this tonight"
+    ],
+    "intent": "Time-based personal reminder that actually nudges him at a time",
+    "data_needed": "tasks.due_at exists; needs a reminder_at field and scheduler push to Telegram/call",
+    "coverage": "partial",
+    "coverage_note": "Model maps it to task_add with due_at (conversation.js:53 prompt), but the only time pushes are deadline notices at 24h and 2h before due (service.js:139-143), so 'in 20 minutes' never fires. 'later' with no time is ambiguous; prompt says ask clarification. Need reminder_at + a scheduler check.",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a117",
+    "phrases": [
+     "snooze that",
+     "push that to tomorrow",
+     "not now, later",
+     "bump it an hour"
+    ],
+    "intent": "Defer the last-mentioned reminder/task/notification",
+    "data_needed": "Reference to last notified/added item; tasks.due_at",
+    "coverage": "missing",
+    "coverage_note": "No snooze action in the schema (conversation.js:53); tasks.js applyTask handles only add/done/priority (tasks.js:31-41), no due-date change. Telegram notifications have no snooze button (telegram.js:96).",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a118",
+    "phrases": [
+     "what's next",
+     "what now",
+     "what should I do now",
+     "hey beacon what's next"
+    ],
+    "intent": "Current/next block and top task",
+    "data_needed": "blocks, tasks (exist)",
+    "coverage": "covered",
+    "coverage_note": "WHATS_NEXT regex and whatsNext() (tasks.js:11,15-24), short-circuited in conversation.js:32. Regex is anchored and strict: 'ok so what's next for today' or 'whats next after this' miss it and go to the model.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:next",
+    "eval_phrases": [
+     0,
+     3
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a119",
+    "phrases": [
+     "what's after that?",
+     "and then?",
+     "what's after class",
+     "when's my next thing"
+    ],
+    "intent": "Step forward through the day from the last answer",
+    "data_needed": "blocks (exist); pointer to last-answered item",
+    "coverage": "partial",
+    "coverage_note": "Falls to model (no code path); model has blocks (conversation.js:49) but no record of the whatsNext reply because code answers aren't saved to messages (conversation.js:32 returns before :74). Usually works by luck of reasoning from now.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a120",
+    "phrases": [
+     "what's tmrw look like",
+     "anything on tmr",
+     "whats on tonight",
+     "do i have class fri"
+    ],
+    "intent": "Sloppy/abbreviated schedule question",
+    "data_needed": "blocks / live calendar (exist)",
+    "coverage": "covered",
+    "coverage_note": "DATEWORD includes tmrw/tmr/fri etc. (schedule.js:10), parseRange handles them (schedule.js:29-54), scheduleAnswer (schedule.js:76-95).",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:schedule",
+    "eval_phrases": [
+     0,
+     3
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a121",
+    "phrases": [
+     "am I free at 3?",
+     "am I busy tomorrow afternoon",
+     "do I have anything at noon",
+     "can I do lunch at 1"
+    ],
+    "intent": "Point-in-time free/busy check",
+    "data_needed": "blocks (exist)",
+    "coverage": "partial",
+    "coverage_note": "'am i free' is STRONG (schedule.js:11) but parseRange ignores clock times and afternoon/morning beyond 'this morning' (schedule.js:32), so it reads the whole day list instead of a yes/no. 'can I do lunch at 1' goes to model.",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "calendar_free"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a122",
+    "phrases": [
+     "when's my next class",
+     "what time is Persian",
+     "how long till my meeting",
+     "when do I have to leave"
+    ],
+    "intent": "Single targeted event time / countdown",
+    "data_needed": "blocks (exist)",
+    "coverage": "partial",
+    "coverage_note": "'class' is STRONG so it routes to scheduleAnswer which dumps today's full list (schedule.js:82-89) rather than the next class; no title filter or countdown. Travel time not available.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a123",
+    "phrases": [
+     "any emails?",
+     "anything new in my school email",
+     "check my mail",
+     "catch me up on email"
+    ],
+    "intent": "Email triage summary",
+    "data_needed": "mail_items (exists)",
+    "coverage": "covered",
+    "coverage_note": "isMailQuery/mailAnswer (schedule.js:121-153), routed at conversation.js:45.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "fast:mail",
+    "eval_phrases": [
+     0,
+     1,
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   },
+   {
+    "id": "a124",
+    "phrases": [
+     "read me my emails",
+     "go over my inbox",
+     "did I get anything from Professor Smith",
+     "anything from the registrar?"
+    ],
+    "intent": "Email question phrased with 'read' or naming a sender",
+    "data_needed": "mail_items sender/subject (exists)",
+    "coverage": "partial",
+    "coverage_note": "'read' isn't in the trigger word list and any 'from X'/'about' is explicitly excluded (schedule.js:123), so these go to the model, which gets no mail context (conversation.js:49-51) and can't answer. Needs a sender filter over mail_items.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a125",
+    "phrases": [
+     "reply saying I'll be there",
+     "tell him yes",
+     "draft back to her that I'm in",
+     "answer that one"
+    ],
+    "intent": "Draft a reply to an email just mentioned",
+    "data_needed": "Last-referenced email's sender mapped to a saved contact; Gmail drafts scope",
+    "coverage": "partial",
+    "coverage_note": "Draft action exists only for saved contacts (conversation.js:53, 86-92); 'him/that one' can't resolve to an email because mail list wasn't saved to history and senders aren't linked to contacts. Never sends (SAFETY); thread-reply drafts not supported.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a126",
+    "phrases": [
+     "just send it",
+     "send that email",
+     "go ahead and send"
+    ],
+    "intent": "Have Beacon send a drafted email",
+    "data_needed": "n/a",
+    "coverage": "not_possible",
+    "coverage_note": "Hard rule: Beacon never sends email; prompt states it (conversation.js:53) and draft reply tells him to press Send (conversation.js:89).",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a127",
+    "phrases": [
+     "make it shorter",
+     "say Thursday instead",
+     "add that I'm sorry",
+     "less formal"
+    ],
+    "intent": "Tweak the current draft by follow-up",
+    "data_needed": "current draft (exists)",
+    "coverage": "covered",
+    "coverage_note": "draft_edit action with current_draft in context (conversation.js:49,53,64,86-92).",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a128",
+    "phrases": [
+     "yeah",
+     "yes do it",
+     "yep go ahead",
+     "sure"
+    ],
+    "intent": "Approve a pending proposal by voice with a natural yes",
+    "data_needed": "pending proposal (exists)",
+    "coverage": "partial",
+    "coverage_note": "Voice only executes on the exact word 'confirm' (voice.js:67-68); 'yes/yeah' goes to converse and clears pending (voice.js:74). Deliberate safety choice; could accept a small yes-set but should stay strict.",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a129",
+    "phrases": [
+     "no",
+     "never mind",
+     "cancel that",
+     "forget it"
+    ],
+    "intent": "Reject pending proposal",
+    "data_needed": "pending proposal",
+    "coverage": "partial",
+    "coverage_note": "Voice handles bare cancel/never mind/no (voice.js:73); 'forget it'/'nah'/'scratch that' go to the model and the proposal just expires via TTL (conversation.js:117).",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a130",
+    "phrases": [
+     "undo that",
+     "take that back",
+     "no, unmark it",
+     "oops undo"
+    ],
+    "intent": "Undo the last auto action (task add/done, meal, note)",
+    "data_needed": "action_undo (exists)",
+    "coverage": "partial",
+    "coverage_note": "Undo works only via Telegram button (telegram.js:96,131-132; tasks.js:44-56). By voice or typed 'undo that', converse has no undo action, so nothing is reverted.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a131",
+    "phrases": [
+     "what?",
+     "say that again",
+     "repeat that",
+     "sorry, didn't catch that"
+    ],
+    "intent": "Repeat last spoken reply",
+    "data_needed": "last reply (in voicepause state)",
+    "coverage": "partial",
+    "coverage_note": "pause.last holds the last reply (voicepause.js:14) but RESUME only replays the unheard tail after an interruption (voicepause.js:46); 'repeat that' goes to the model, which has history only for model turns (conversation.js:52), not code answers.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a132",
+    "phrases": [
+     "hold on",
+     "wait",
+     "note: buy printer ink",
+     "ok beacon resume"
+    ],
+    "intent": "Pause mid-reply, dictate a note, resume",
+    "data_needed": "in-call state",
+    "coverage": "covered",
+    "coverage_note": "voicepause.js:33-48 with PAUSE/RESUME/KIND regexes (briefcall.js:5-7); saved via saveNote (voice.js:58).",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a133",
+    "phrases": [
+     "done with that",
+     "finished it",
+     "mark it done",
+     "knocked out the econ pset"
+    ],
+    "intent": "Complete the task just mentioned",
+    "data_needed": "tasks (exists) + reference to last-mentioned task",
+    "coverage": "partial",
+    "coverage_note": "task_done action exists (conversation.js:53; tasks.js:39) and works when the task is named. 'it/that' after a code-answered 'what's next' can't be resolved because that reply wasn't saved to messages (conversation.js:32).",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a134",
+    "phrases": [
+     "move it to 4",
+     "push my 3 o'clock to 5",
+     "cancel that meeting",
+     "move that to Friday"
+    ],
+    "intent": "Reschedule/cancel a calendar event with pronoun reference",
+    "data_needed": "blocks with ids (exists); calendar.events.owned",
+    "coverage": "partial",
+    "coverage_note": "cal_move/cal_cancel via approval (conversation.js:53,115). 'it/that' after a code schedule answer lacks history; only owned events are writable.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a135",
+    "phrases": [
+     "add milk",
+     "put laundry on my list",
+     "remind me to email Dr. X",
+     "todo call the bank"
+    ],
+    "intent": "Quick task capture",
+    "data_needed": "tasks (exists)",
+    "coverage": "covered",
+    "coverage_note": "task_add Auto tier with Undo (conversation.js:53,101-107; tasks.js:32-36).",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [],
+     "action": "task_add",
+     "must_not": [
+      "proposal"
+     ]
+    }
+   },
+   {
+    "id": "a136",
+    "phrases": [
+     "what's due",
+     "anything due friday",
+     "what hw do I have",
+     "when's the midterm"
+    ],
+    "intent": "Assignments/deadlines",
+    "data_needed": "tasks from trackers (exists); Canvas API blocked",
+    "coverage": "covered",
+    "coverage_note": "isAssignmentQuery/assignmentsAnswer (schedule.js:99-117). 'when's the midterm' matches but returns the 7-day window list, not a search by title.",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a137",
+    "phrases": [
+     "what's my grade in econ",
+     "did I get my pset back",
+     "check Canvas"
+    ],
+    "intent": "Grades / Canvas content",
+    "data_needed": "Canvas API (blocked by UChicago); grade content is off limits",
+    "coverage": "not_possible",
+    "coverage_note": "Canvas API blocked; school records masked as '[school record — open it directly]' (google.js:98).",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a138",
+    "phrases": [
+     "call mom",
+     "call him back",
+     "ring Dana"
+    ],
+    "intent": "Bridge call to a saved contact",
+    "data_needed": "contacts (exists)",
+    "coverage": "partial",
+    "coverage_note": "call action for saved contacts (conversation.js:53), but from voice it must be approved in Telegram (voice.js:76) which is awkward while driving; 'call him back' has no referent.",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "contacts_search"
+     ],
+     "action": "call",
+     "must_not": [
+      "draft",
+      "contact"
+     ]
+    }
+   },
+   {
+    "id": "a139",
+    "phrases": [
+     "text her I'm running late",
+     "tell Sam I'll be 10 min late",
+     "let them know I'm late"
+    ],
+    "intent": "Send a message to someone",
+    "data_needed": "SMS/iMessage sending (none)",
+    "coverage": "not_possible",
+    "coverage_note": "Prompt forbids texting/sending (conversation.js:53); only drafts to saved contacts by email.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a140",
+    "phrases": [
+     "what's the weather",
+     "do I need a jacket",
+     "is it gonna rain"
+    ],
+    "intent": "Quick weather",
+    "data_needed": "Open-Meteo (weather.js exists)",
+    "coverage": "partial",
+    "coverage_note": "chicagoWeather() (weather.js:3-14) is only used in briefs; converse has no weather path so the model answers without data.",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "weather"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a141",
+    "phrases": [
+     "I'm running late",
+     "I'm gonna miss Persian",
+     "skip the gym today"
+    ],
+    "intent": "Status update on a current block",
+    "data_needed": "blocks, checkin (exists)",
+    "coverage": "partial",
+    "coverage_note": "checkin action with skipped/partial status (conversation.js:53) records it; no auto-reschedule by rule, and no notifying others.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a142",
+    "phrases": [
+     "list my tasks",
+     "my tasks",
+     "show me my tasks",
+     "what's on my list"
+    ],
+    "intent": "Open task list",
+    "data_needed": "tasks",
+    "coverage": "partial",
+    "coverage_note": "LIST_TASKS is anchored and narrow (tasks.js:12); 'what's on my list'/'what's on my to-do' miss it and go to the model (which sees 25 tasks, so mostly fine).",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "fast:tasks",
+    "eval_phrases": [
+     0,
+     2
+    ],
+    "expect": {
+     "tools": [],
+     "action": null,
+     "must_not": [
+      "model_call"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a143",
+    "phrases": [
+     "what's next?",
+     "what should I do now?",
+     "what should I work on tonight?",
+     "I have an hour free, what should I knock out?",
+     "what's the most important thing right now?"
+    ],
+    "intent": "Pick the single best thing to do now given current block, next block, and open tasks",
+    "data_needed": "blocks + tasks (priority, due_at) in D1 — exists",
+    "coverage": "partial",
+    "coverage_note": "Exact phrasings answered by code at src/tasks.js:11 (WHATS_NEXT regex, anchored) -> whatsNext src/tasks.js:15-24 (current block, next block within 18h, top task by priority then due). Variants like 'what should I work on tonight' or 'I have an hour free' fall to the model (conversation.js:49), whose task list omits the priority field and ignores free-time length; whatsNext also does not consider available time before next block or overdue status",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a144",
+    "phrases": [
+     "list my tasks",
+     "what's on my to-do list?",
+     "show me everything open",
+     "what do I still have to do?"
+    ],
+    "intent": "See open tasks",
+    "data_needed": "tasks table — exists",
+    "coverage": "partial",
+    "coverage_note": "LIST_TASKS regex src/tasks.js:12 -> listTasks src/tasks.js:25-28 returns only top 8 of 25; no paging ('show more'), and loose phrasings ('what do I still have to do') miss the regex and go to the model",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a145",
+    "phrases": [
+     "show my school tasks",
+     "what career stuff do I have open?",
+     "what's left for Persian?",
+     "anything personal I need to do?"
+    ],
+    "intent": "Filter open tasks by category/course",
+    "data_needed": "tasks.category (personal|school|persian|career) — exists; per-course split only via title text",
+    "coverage": "partial",
+    "coverage_note": "No code path filters by category; listTasks src/tasks.js:25 is unfiltered. Model sees 25 tasks but compact mapping conversation.js:49 drops category and priority, so the model must guess from titles. assignmentsAnswer schedule.js:108 filters category='school' only for dated items",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a146",
+    "phrases": [
+     "add a task: finish econ pset by Thursday 5pm",
+     "remind me to email my TA",
+     "put 'buy printer paper' on my list",
+     "I need to do the Russian reading before Wednesday"
+    ],
+    "intent": "Capture a task with optional due date/priority",
+    "data_needed": "tasks insert — exists",
+    "coverage": "covered",
+    "coverage_note": "Model task_add action (conversation.js:53 prompt) -> ACTIONS.task_add actions.js:50-52 -> applyTask src/tasks.js:32-36, Auto tier with 24h Undo button telegram.js:96",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "task_add",
+     "must_not": [
+      "proposal"
+     ]
+    }
+   },
+   {
+    "id": "a147",
+    "phrases": [
+     "remind me at 4pm to call the registrar",
+     "ping me in 20 minutes to switch the laundry",
+     "remind me tomorrow morning to bring my ID",
+     "nudge me at 9 tonight to start the essay"
+    ],
+    "intent": "Time-triggered reminder that fires at the stated time",
+    "data_needed": "a reminders table (or tasks.remind_at) + tick() check; Telegram/push delivery exists",
+    "coverage": "missing",
+    "coverage_note": "'remind me' becomes task_add with due_at (conversation.js:53) or a note (notes.js, no time). tick() only fires deadline notices at 24h and 2h before due_at in a 5-minute window (service.js:142-143), so a reminder set <2h out never fires and nothing fires AT the time. Quiet hours (service.js:133) also suppress",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a148",
+    "phrases": [
+     "done with the econ pset",
+     "I finished the Persian worksheet",
+     "mark the art games reading done",
+     "checked off the essay"
+    ],
+    "intent": "Complete a task",
+    "data_needed": "tasks.status — exists",
+    "coverage": "partial",
+    "coverage_note": "task_done actions.js:53 -> applyTask src/tasks.js:39 with Undo. Bug: it sets status='done' but not completed_at, so weekly review count `status='done' AND completed_at>=?` (review.js:40) misses chat completions. Task must be in the 25 tasks given to the model (conversation.js:49) though validation sees 150",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a149",
+    "phrases": [
+     "make the cover letter high priority",
+     "bump the stats pset",
+     "that one can wait, make it low priority",
+     "what's my top priority?"
+    ],
+    "intent": "Reprioritize tasks",
+    "data_needed": "tasks.priority (0024 migration) — exists",
+    "coverage": "covered",
+    "coverage_note": "task_priority actions.js:54 -> src/tasks.js:40-41 with Undo src/tasks.js:50; top priority surfaced in whatsNext src/tasks.js:22. (Model cannot see current priorities: conversation.js:49 omits the field)",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "tasks_search"
+     ],
+     "action": "task_priority",
+     "must_not": [
+      "proposal"
+     ]
+    }
+   },
+   {
+    "id": "a150",
+    "phrases": [
+     "push the econ pset to Friday",
+     "change the due date on the reading to Monday",
+     "the essay deadline moved to the 20th",
+     "rename that task to 'draft cover letter'"
+    ],
+    "intent": "Edit an existing task's due date, title or notes",
+    "data_needed": "tasks columns — exist; needs a task_edit action with before-image undo",
+    "coverage": "missing",
+    "coverage_note": "ACTIONS has only task_add/task_done/task_priority (actions.js:50-54); no edit path. Model would have to add a duplicate task",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a151",
+    "phrases": [
+     "drop the GroupMe thing, not doing it",
+     "delete that task",
+     "never mind about the printer paper",
+     "skip the optional reading"
+    ],
+    "intent": "Remove/skip a task",
+    "data_needed": "tasks.status='skipped' — exists",
+    "coverage": "partial",
+    "coverage_note": "Only via checkin action status 'skipped' (actions.js:22-26), which is Confirm tier needing an Approve tap, unlike task_done Auto tier; no Undo button. Undo of a fresh task_add deletes it (tasks.js:48)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a152",
+    "phrases": [
+     "what's overdue?",
+     "what did I miss?",
+     "am I behind on anything?",
+     "anything past due?"
+    ],
+    "intent": "See overdue open tasks",
+    "data_needed": "tasks due_at < now — exists",
+    "coverage": "partial",
+    "coverage_note": "isAssignmentQuery needs homework/due/deadline words (schedule.js:100-101); 'what's due' shows past-due within 14 days (schedule.js:110-113). 'Am I behind' / 'what did I miss' have no code path and go to the model with only 25 tasks; overdue >14 days hidden",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a153",
+    "phrases": [
+     "what's due this week?",
+     "anything due Friday?",
+     "what deadlines do I have coming up?",
+     "when is the econ pset due?"
+    ],
+    "intent": "Upcoming deadlines over a date range or for one task",
+    "data_needed": "tasks due_at — exists (from course trackers + captures)",
+    "coverage": "partial",
+    "coverage_note": "Range questions covered by assignmentsAnswer schedule.js:103-117. Single-item 'when is X due' excluded by isMailQuery-style filters? no: it hits isAssignmentQuery and returns a 7-day list, not the named task; no lookup by name",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a154",
+    "phrases": [
+     "starting Persian now",
+     "I'm working on the pset",
+     "just sat down for the reading block",
+     "begin my 2pm block"
+    ],
+    "intent": "Check in that a work block/task has started",
+    "data_needed": "blocks.status/tasks.status — exists",
+    "coverage": "partial",
+    "coverage_note": "Model checkin action actions.js:22-26 -> service.js:50-62, but Confirm tier: needs an Approve tap for a one-word status update. No start timestamp recorded, so actual minutes cannot be computed",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a155",
+    "phrases": [
+     "how did the Persian block go? (Beacon asks) - done, 50 minutes",
+     "partly done, got through half",
+     "skipped it",
+     "I'm stuck on problem 3"
+    ],
+    "intent": "Reply to block-end check-in prompts",
+    "data_needed": "blocks — exists; notices from core.js scheduleNotices",
+    "coverage": "partial",
+    "coverage_note": "Prompts sent at block start-10m, end, end+30m (core.js:11-19 via service.js:136) but Telegram notices carry no Done/Partial/Skipped/Stuck buttons (service.js:102 only security/mail markup). A free-text reply goes to the model -> checkin proposal requiring Approve",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a156",
+    "phrases": [
+     "I'm stuck on the stats pset",
+     "help me get started on the essay",
+     "break the cover letter into steps",
+     "I can't focus, what's a small first step?"
+    ],
+    "intent": "Unblock: break a task into concrete first steps, optionally save subtasks",
+    "data_needed": "task notes (untrusted), kb notes — exist; subtasks would need parent_id column",
+    "coverage": "partial",
+    "coverage_note": "Model can answer in chat (system prompt 'Help him start work' conversation.js:53) and could emit one task_add, but no multi-task add or subtask structure; stuck status only via Confirm-tier checkin",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a157",
+    "phrases": [
+     "check on me in 45 minutes",
+     "start a 25 minute focus timer",
+     "hold me accountable, I'm working until 4",
+     "make sure I actually start at 7"
+    ],
+    "intent": "Ad-hoc accountability check-in / focus session",
+    "data_needed": "timer/reminder rows + tick(); Telegram delivery exists",
+    "coverage": "missing",
+    "coverage_note": "Check-ins exist only for calendar blocks (core.js:11-19). No ad-hoc session or timer; agent cannot schedule a future message",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a158",
+    "phrases": [
+     "what did I get done today?",
+     "what have I finished this week?",
+     "how productive was I today?",
+     "did I finish the econ pset?"
+    ],
+    "intent": "Review completed work",
+    "data_needed": "tasks completed_at/status, blocks status — exist",
+    "coverage": "partial",
+    "coverage_note": "Evening brief counts blocks done (brief.js:35) and weekly review planVsReality (review.js:36-42). On-demand chat: model context filters out done tasks (conversation.js:49 `status!=='done'`) and only blocks from last 24h, so it cannot answer 'did I finish X'; completed_at unset by chat completions (tasks.js:39)",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a159",
+    "phrases": [
+     "how many Persian hours this week?",
+     "am I on track for 6 hours of Persian?",
+     "how much did I study today?",
+     "how much time did I spend on econ this week?"
+    ],
+    "intent": "Time tracking vs targets",
+    "data_needed": "blocks.actual_minutes + category — exists; persianTargetMinutes setting 360",
+    "coverage": "partial",
+    "coverage_note": "Weekly review counts blocks done/planned by category, not minutes (review.js:38-42). Chat model sees persianWeeklyTargetHours but blocks only from last 24h (conversation.js:49); no code answer summing actual_minutes",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a160",
+    "phrases": [
+     "plan my day",
+     "what does tomorrow look like for work?",
+     "help me plan the week",
+     "when should I do the econ pset?"
+    ],
+    "intent": "Build a plan fitting tasks into free time",
+    "data_needed": "blocks + tasks + live calendar free/busy (read-only Google) — exist; cal_create needs approval",
+    "coverage": "partial",
+    "coverage_note": "Morning brief lists blocks + 7-day deadlines (brief.js:29-31). Chat model can suggest and propose individual cal_create actions (calendar.js via actions.js:61), but no free-slot finder and no multi-event plan proposal; prefs.automaticRescheduling forced false (index.js:180) by design",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a161",
+    "phrases": [
+     "block 2 hours tomorrow afternoon for the essay",
+     "schedule time for Persian Thursday",
+     "put a work block on my calendar for the pset"
+    ],
+    "intent": "Time-block a task on the calendar",
+    "data_needed": "calendar.events.owned write via approval — exists",
+    "coverage": "partial",
+    "coverage_note": "cal_create proposal (conversation.js:53, CALENDAR_ACTIONS actions.js:61). syncCalendar only imports events titled 'Class work —'/'Career —' (service.js:68), so a new block won't get check-ins unless the model uses that prefix; no link between block and task",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a162",
+    "phrases": [
+     "move my Persian block to 8pm",
+     "I'm not going to make the 3pm block, push it",
+     "reschedule tonight's reading block to tomorrow"
+    ],
+    "intent": "Reschedule a work block",
+    "data_needed": "Google calendar write (owned events) — exists",
+    "coverage": "covered",
+    "coverage_note": "cal_move proposal with approval and undo (conversation.js:53; calendar.js; undo via tasks.js:51)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a163",
+    "phrases": [
+     "undo that",
+     "wait, I didn't finish it",
+     "undo the last thing",
+     "oops, wrong task"
+    ],
+    "intent": "Undo the most recent task change by voice/text",
+    "data_needed": "action_undo table — exists",
+    "coverage": "partial",
+    "coverage_note": "Undo only via Telegram inline button u:<id> (telegram.js:131-132) -> undoAction tasks.js:44. Typed or spoken 'undo that' has no handler: model has no undo action type; web app and voice cannot undo",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a164",
+    "phrases": [
+     "every Sunday remind me to do laundry",
+     "add 'Persian flashcards' every weekday",
+     "remind me weekly to update the tracker"
+    ],
+    "intent": "Recurring tasks/reminders",
+    "data_needed": "recurrence rule column + tick() expansion",
+    "coverage": "missing",
+    "coverage_note": "No recurrence anywhere in tasks (migrations 0001/0024); SAFETY/ROADMAP:145 forbids recurring calendar edits, but recurring local tasks are not prohibited",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a165",
+    "phrases": [
+     "snooze that reminder an hour",
+     "remind me again later",
+     "not now, ask me after dinner"
+    ],
+    "intent": "Snooze a notice or check-in",
+    "data_needed": "notifications row + re-notify time",
+    "coverage": "missing",
+    "coverage_note": "notify() inserts once by id (service.js:90) with no snooze or re-delivery; Telegram notices have no buttons for check-ins",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a166",
+    "phrases": [
+     "did I submit the econ pset on Canvas?",
+     "is my Russian history paper turned in?",
+     "what's my grade in stats?"
+    ],
+    "intent": "Verify submission/grade in Canvas",
+    "data_needed": "Canvas API — blocked by UChicago",
+    "coverage": "not_possible",
+    "coverage_note": "Canvas API blocked (ACCOUNTABILITY.md:21 'Canvas submission status has not been verified'); system prompt says 'A completed block does not prove submission' (conversation.js:53). Only Canvas notification emails or Jackson's own check-in can indicate it",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a167",
+    "phrases": [
+     "submit my pset for me",
+     "turn in the essay on Canvas",
+     "email my professor that I'll be late"
+    ],
+    "intent": "Submit work or send an email on his behalf",
+    "data_needed": "Canvas write / Gmail send — prohibited",
+    "coverage": "not_possible",
+    "coverage_note": "Hard rule: never sends email, no Canvas; system prompt conversation.js:53 'You cannot send email ... submit work'. Draft to a saved contact is the allowed alternative (actions.js:37-40)",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a168",
+    "phrases": [
+     "which deadlines aren't confirmed?",
+     "what tasks don't have a due date?",
+     "are any of my deadlines guesses?"
+    ],
+    "intent": "Audit data quality of task deadlines",
+    "data_needed": "tasks.confidence, due_at null — exists",
+    "coverage": "partial",
+    "coverage_note": "Weekly review marks '(unconfirmed)' deadlines (review.js:~31). Chat model receives confidence (conversation.js:49) so it can answer for the 25 it sees; no code answer, and unconfirmed tasks never get deadline notices (service.js:141)",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a169",
+    "phrases": [
+     "what's my next deadline?",
+     "when's my next thing due?",
+     "what's the closest deadline?"
+    ],
+    "intent": "Single nearest deadline",
+    "data_needed": "tasks due_at — exists",
+    "coverage": "partial",
+    "coverage_note": "Briefs report next deadline (brief.js:38, 60) but on demand isAssignmentQuery (schedule.js:101) returns full 7-day list; whatsNext gives top task by priority, not nearest due",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a170",
+    "phrases": [
+     "what should I do first tomorrow?",
+     "what's my first task in the morning?",
+     "set my one focus for tomorrow"
+    ],
+    "intent": "Pick and save tomorrow's focus",
+    "data_needed": "tasks/blocks; a 'focus' setting or task flag",
+    "coverage": "partial",
+    "coverage_note": "Evening brief mentions tomorrow's first block (brief.js:70) and ROADMAP:79-80 'one focus'; no way to set a focus by chat other than raising priority (task_priority)",
+    "kind": "action",
+    "frequency": 3
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a171",
+    "phrases": [
+     "I had two eggs and toast for breakfast",
+     "log a chipotle bowl for lunch",
+     "just ate a protein bar",
+     "had a burger and fries around noon"
+    ],
+    "intent": "Log a meal with calorie/macro estimates",
+    "data_needed": "meals table (exists, migrations/0006_meals.sql)",
+    "coverage": "covered",
+    "coverage_note": "Model meal/meals action in conversation.js:53, validated by meals.js:6-13 and logged by conversation.js:83-89 with Undo button telegram.js:97,114-115 (undo window 24h meals.js:21-22)",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "meal",
+     "must_not": [
+      "proposal",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a172",
+    "phrases": [
+     "log what I had for dinner last night: pasta",
+     "yesterday I had pizza for lunch",
+     "add breakfast at 8 this morning"
+    ],
+    "intent": "Backdate a meal to an earlier time",
+    "data_needed": "meals.eaten_at (exists)",
+    "coverage": "covered",
+    "coverage_note": "eaten_at resolution in prompt conversation.js:53; validateMeal accepts up to 3 days back, rejects >1h future (meals.js:10-11)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a173",
+    "phrases": [
+     "how many calories have I had today?",
+     "how much protein do I have left?",
+     "am I over my calories?",
+     "what have I eaten today?"
+    ],
+    "intent": "Today's food totals versus target",
+    "data_needed": "meals + preferences.calorieTarget/proteinTarget (exist)",
+    "coverage": "partial",
+    "coverage_note": "Only the Telegram /food command answers it (telegram.js:47-51) and evening brief (brief.js:41,69). Natural-language chat/voice/web goes to the model, which gets no meal data in its context (conversation.js:49 compact has no meals), so it cannot answer and may guess. Needs a code-answered isFoodQuery route like schedule.js before the model call.",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "meals_today"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a174",
+    "phrases": [
+     "how did I do on protein this week?",
+     "what's my average calories this week?",
+     "show me my food trend",
+     "did I hit my protein goal yesterday?"
+    ],
+    "intent": "Multi-day nutrition summary/trend",
+    "data_needed": "meals table (exists); needs a range aggregate",
+    "coverage": "missing",
+    "coverage_note": "Only dayTotals for one date (meals.js:27-30) and a raw CSV export (meals.js:36-40, index.js:164). Morning brief reports yesterday only (brief.js:41,62). No weekly/average function or chat route.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a175",
+    "phrases": [
+     "set my calorie target to 2400",
+     "I want 180g protein a day",
+     "change my goal to 2200 calories"
+    ],
+    "intent": "Set daily nutrition targets",
+    "data_needed": "settings.preferences (exists)",
+    "coverage": "partial",
+    "coverage_note": "Telegram /target 2200 180 works (telegram.js:52-57); saying it in natural language via chat/voice has no model action for it (no target action in conversation.js:53).",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a176",
+    "phrases": [
+     "actually that was two slices, not one",
+     "fix my lunch, it was a large not a small",
+     "delete the coffee I logged",
+     "remove that last meal"
+    ],
+    "intent": "Edit or delete a logged meal",
+    "data_needed": "meals table (exists)",
+    "coverage": "partial",
+    "coverage_note": "Only the Undo button within 24h (meals.js:21-25, telegram.js:114-115). No edit action, and no chat/voice way to undo by description; voice/web have no undo button path for meals.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a177",
+    "phrases": [
+     "log the same breakfast as yesterday",
+     "I had my usual lunch",
+     "same as last time at Sweetgreen"
+    ],
+    "intent": "Repeat a previous meal",
+    "data_needed": "meals history (exists)",
+    "coverage": "missing",
+    "coverage_note": "Model gets no meal history in context (conversation.js:49), so it re-estimates from scratch or cannot resolve 'usual'.",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a178",
+    "phrases": [
+     "what should I eat to hit my protein?",
+     "I have 600 calories left, what's a good dinner?",
+     "suggest a high-protein snack"
+    ],
+    "intent": "Meal suggestions based on remaining macros",
+    "data_needed": "today's totals + targets (exist)",
+    "coverage": "partial",
+    "coverage_note": "Model can give generic advice but receives no totals/targets (conversation.js:49), so suggestions are not grounded in what's left.",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a179",
+    "phrases": [
+     "log 3 glasses of water",
+     "how much water have I had?",
+     "I drank a liter of water"
+    ],
+    "intent": "Track water/hydration",
+    "data_needed": "no water column/table today",
+    "coverage": "missing",
+    "coverage_note": "meals schema (0006_meals.sql) has calories/macros only; validateMeal requires macro numbers (meals.js:9). A 0-calorie item would log but no hydration totals exist.",
+    "kind": "action",
+    "frequency": 1
+   },
+   {
+    "id": "a180",
+    "phrases": [
+     "[sends a photo of his plate] log this",
+     "here's what I'm eating"
+    ],
+    "intent": "Log a meal from a photo",
+    "data_needed": "Telegram photo handling + vision model",
+    "coverage": "missing",
+    "coverage_note": "Telegram handler only processes text and callbacks (telegram.js:40-95); no photo/document branch.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a181",
+    "phrases": [
+     "what's the weather?",
+     "how cold is it today?",
+     "what's it like outside?",
+     "weather today"
+    ],
+    "intent": "Current/today's Chicago weather",
+    "data_needed": "Open-Meteo (public, already used in weather.js)",
+    "coverage": "partial",
+    "coverage_note": "chicagoWeather() exists (weather.js:3-15) but is only used in the morning brief (brief.js:28,58). No Telegram command, and chat/voice questions go to the model which gets no weather context (conversation.js:49) and is told to use only supplied context.",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a182",
+    "phrases": [
+     "do I need an umbrella today?",
+     "is it going to rain this afternoon?",
+     "will it snow tonight?",
+     "should I wear a jacket?"
+    ],
+    "intent": "Precipitation/clothing decision, often hourly",
+    "data_needed": "Open-Meteo hourly fields (not fetched)",
+    "coverage": "missing",
+    "coverage_note": "weather.js:5 fetches daily max/min/precip probability only, forecast_days=1, no hourly; not reachable from chat.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a183",
+    "phrases": [
+     "what's the weather tomorrow?",
+     "what's the forecast this weekend?",
+     "is Saturday going to be nice?"
+    ],
+    "intent": "Multi-day forecast",
+    "data_needed": "Open-Meteo forecast_days>1",
+    "coverage": "missing",
+    "coverage_note": "forecast_days=1 hardcoded (weather.js:5).",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a184",
+    "phrases": [
+     "what's the weather in DC this week?",
+     "weather in Denver for Thanksgiving",
+     "is it raining in New York?"
+    ],
+    "intent": "Weather for another city (travel, home)",
+    "data_needed": "Open-Meteo + geocoding (public)",
+    "coverage": "missing",
+    "coverage_note": "Coordinates hardcoded to campus (weather.js:5).",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a185",
+    "phrases": [
+     "what's in the news?",
+     "give me the headlines",
+     "anything big happen today?",
+     "news update"
+    ],
+    "intent": "Current headline digest",
+    "data_needed": "RSS feeds (news.js:7-27, exist)",
+    "coverage": "partial",
+    "coverage_note": "Telegram /news (telegram.js:73) and morning brief (brief.js:121-122) only. Natural-language chat/voice/web has no news route and the model has no news context (conversation.js:49).",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a186",
+    "phrases": [
+     "what's the latest on Ukraine?",
+     "any news on the Fed today?",
+     "what happened with the defense budget?",
+     "news about Iran"
+    ],
+    "intent": "News on a specific topic",
+    "data_needed": "Same feeds filtered by keyword; untrusted text must stay sandboxed",
+    "coverage": "missing",
+    "coverage_note": "gatherNews only groups 3 fixed topics (news.js:52-60); no keyword filter or chat route.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a187",
+    "phrases": [
+     "how are the markets doing?",
+     "what's the S&P at?",
+     "did stocks go up today?"
+    ],
+    "intent": "Market snapshot",
+    "data_needed": "A public market quote feed (none today)",
+    "coverage": "missing",
+    "coverage_note": "Only macro RSS headlines (news.js:8-14); no price data.",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a188",
+    "phrases": [
+     "note: call the registrar about the hold",
+     "remember that Sam's birthday is March 3",
+     "jot down this idea for the game",
+     "note to self, buy printer paper"
+    ],
+    "intent": "Save a quick note in his own words",
+    "data_needed": "notes table (exists)",
+    "coverage": "covered",
+    "coverage_note": "note action conversation.js:53,79-81 -> saveNote notes.js:9-22 verbatim, pushed to notes/INBOX.md (notes.js:35-55); voice handled in code voice.js:53-58, brief calls brief.js:190-192; Undo telegram.js:112-113",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "note",
+     "must_not": [
+      "proposal",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a189",
+    "phrases": [
+     "what did I note about the registrar?",
+     "what's Sam's birthday again?",
+     "what did I tell you to remember about X?",
+     "find my note about the game idea"
+    ],
+    "intent": "Recall a specific saved note",
+    "data_needed": "notes table + kb FTS (exist)",
+    "coverage": "partial",
+    "coverage_note": "/notes lists the latest 10 only (telegram.js:64-65, notes.js:24); /search hits kb (telegram.js:67-68). Chat gets kbSearch excerpts (conversation.js:51) but notes only reach kb after GitHub commit + node reindex (notes.js:52, jarvis-node.mjs:127), and recent D1 notes are not searched directly.",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a190",
+    "phrases": [
+     "show me my notes",
+     "what notes did I take this week?",
+     "read me my notes"
+    ],
+    "intent": "List recent notes",
+    "data_needed": "notes table (exists)",
+    "coverage": "partial",
+    "coverage_note": "Telegram /notes (telegram.js:64-65); no natural-language or voice route, no date filter.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a191",
+    "phrases": [
+     "delete that note",
+     "scratch the last note",
+     "change my note to say Thursday instead"
+    ],
+    "intent": "Delete or edit a note",
+    "data_needed": "notes table + repo INBOX.md",
+    "coverage": "partial",
+    "coverage_note": "undoNote only works before export (notes.js:23) and exports happen immediately when GitHub is configured, so Undo usually fails; no edit.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a192",
+    "phrases": [
+     "remind me at 5 to call mom",
+     "remind me tomorrow morning to bring my ID",
+     "ping me in an hour about laundry"
+    ],
+    "intent": "Time-specific reminder",
+    "data_needed": "tasks.due_at + scheduler (exist)",
+    "coverage": "partial",
+    "coverage_note": "Becomes task_add with due_at (conversation.js:53); scheduler only notifies 24h and 2h before due (service.js:139-143), not at the requested time.",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a193",
+    "phrases": [
+     "send me my resume",
+     "send me the visa form PDF",
+     "text me the career plan doc",
+     "send me that file about the DC trek"
+    ],
+    "intent": "Send a file to his phone",
+    "data_needed": "Mac node + Telegram (exist)",
+    "coverage": "partial",
+    "coverage_note": "send_file action (conversation.js:53,110-111) resolved by agent-node/lib.mjs:40-50 under ROOT = Beacon folder only (jarvis-node.mjs:20); files in ~/Jackson Mackney/Work_History_and_Resume, Career_Plan etc. are outside it. Requires Mac online.",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "send_file",
+     "must_not": [
+      "proposal",
+      "draft"
+     ]
+    }
+   },
+   {
+    "id": "a194",
+    "phrases": [
+     "what do my notes say about the Dana meeting?",
+     "search my files for fellowship deadlines",
+     "find where I wrote about career options"
+    ],
+    "intent": "Search his own markdown knowledge base",
+    "data_needed": "kb FTS table (exists)",
+    "coverage": "covered",
+    "coverage_note": "/search (telegram.js:67-68, kb.js:24-31); chat includes top-4 kb excerpts as untrusted data (conversation.js:51).",
+    "kind": "read_answer",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "notes_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a195",
+    "phrases": [
+     "save this PDF",
+     "keep this photo for me",
+     "file this document in my career folder"
+    ],
+    "intent": "Store a file he sends",
+    "data_needed": "Telegram document upload + storage (none)",
+    "coverage": "missing",
+    "coverage_note": "No Telegram document/photo handling (telegram.js:40-95); node only uploads outward (node.js:77-89).",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a196",
+    "phrases": [
+     "how much did I spend this week?",
+     "what did I spend on food delivery this month?",
+     "am I spending more than usual?",
+     "how much have I spent at Uber Eats?"
+    ],
+    "intent": "Spending summary by period/category/merchant",
+    "data_needed": "charges table (exists, derived fields only); finance routing on hold per ROADMAP.md:23",
+    "coverage": "partial",
+    "coverage_note": "Only pushed notices: weekly Sunday summary and monthly trend and hot-category alerts (finance.js:137-160), with weeklySpend helper (finance.js:129-136). No on-demand chat/Telegram answer; should be code-answered (no model) to keep finance off LLM prompts per DATA.md:11-12.",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "request_capability",
+     "must_not": [
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a197",
+    "phrases": [
+     "what subscriptions do I have?",
+     "how much am I paying for subscriptions?",
+     "when does my Amazon Prime renew?"
+    ],
+    "intent": "Subscription list and renewal dates",
+    "data_needed": "known_subscriptions (exists, imported locally)",
+    "coverage": "partial",
+    "coverage_note": "Renewal reminders 1-3 days ahead and 1st-of-month summary are pushed (finance.js:94-112); no on-demand query route.",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a198",
+    "phrases": [
+     "what was that $140 charge?",
+     "did I get charged twice by Spotify?",
+     "show me my recent charges",
+     "any weird charges lately?"
+    ],
+    "intent": "Review recent/specific card charges",
+    "data_needed": "charges table (exists)",
+    "coverage": "partial",
+    "coverage_note": "New-merchant/over-threshold/price-change alerts are pushed (finance.js:55-70); no listing or lookup on demand.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a199",
+    "phrases": [
+     "only alert me for charges over $50",
+     "stop pinging me about small charges",
+     "raise my charge alert to $200"
+    ],
+    "intent": "Adjust charge alert threshold",
+    "data_needed": "preferences.chargeAlertMin (exists)",
+    "coverage": "partial",
+    "coverage_note": "Settable via the web preferences endpoint (index.js:178); no chat/Telegram command.",
+    "kind": "action",
+    "frequency": 1
+   },
+   {
+    "id": "a200",
+    "phrases": [
+     "keep me under $100 a week on eating out",
+     "set a budget for food delivery",
+     "warn me if I go over $300 this month"
+    ],
+    "intent": "Set a spending budget with alerts",
+    "data_needed": "charges + new budget preferences",
+    "coverage": "missing",
+    "coverage_note": "Coach compares only to his own history (finance.js:140-145); no user-set budget caps.",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a201",
+    "phrases": [
+     "what's my bank balance?",
+     "how much is in checking?",
+     "what's my credit card balance?"
+    ],
+    "intent": "Account balances",
+    "data_needed": "Bank API or balance emails (C4 restricted)",
+    "coverage": "not_possible",
+    "coverage_note": "Balance emails are deliberately excluded (NOT_CHARGE finance.js:11); account data is C4 local-only (DATA.md:12,24); no bank connection by design.",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a202",
+    "phrases": [
+     "pay my credit card",
+     "Venmo Sam $20",
+     "cancel my Hulu subscription",
+     "transfer money to savings"
+    ],
+    "intent": "Move money or cancel a service",
+    "data_needed": "Bank/merchant write access (none, prohibited)",
+    "coverage": "not_possible",
+    "coverage_note": "Beacon has no outbound financial actions; finance stays local and no model with finance data has an outbound tool (ROADMAP.md:169). Best fallback: task_add reminder.",
+    "kind": "action",
+    "frequency": 2
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a203",
+    "phrases": [
+     "Call my mom",
+     "Get Dad on the phone",
+     "Can you ring Dana for me",
+     "Connect me with Professor X"
+    ],
+    "intent": "Bridge a phone call to a saved contact",
+    "data_needed": "contacts table (phone), Twilio secrets; exists",
+    "coverage": "covered",
+    "coverage_note": "Model action {type:'call'} conversation.js:53; validated actions.js:44-48 (has phone required); Confirm card in Telegram, never voice-approved conversation.js:141, voice.js:75; placeBridgeCall contacts.js:68-82 rings Jackson then dials, 5/hour cap. Note: VOICE/Twilio SMS setup items still open in ROADMAP.md:51",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a204",
+    "phrases": [
+     "Call Mike at 3pm",
+     "Remind me to call Mom tonight and dial her then",
+     "Schedule a call with Dad after class"
+    ],
+    "intent": "Place (or prompt) a bridged call at a future time",
+    "data_needed": "contacts + a scheduled-call row/cron; nothing stores deferred calls today",
+    "coverage": "missing",
+    "coverage_note": "placeBridgeCall only runs at approval time (contacts.js:68) and proposals expire in 10 min (conversation.js:119); only workaround is task_add reminder. Safe version: scheduled Telegram nudge with a fresh Approve card, never auto-dial",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a205",
+    "phrases": [
+     "Add Sarah to my contacts, 312-555-0100",
+     "Save Dana's email dana@uchicago.edu",
+     "New contact: Coach Ryan, ryan@x.com"
+    ],
+    "intent": "Save a new contact he types",
+    "data_needed": "contacts table; exists",
+    "coverage": "covered",
+    "coverage_note": "Model action {type:'contact'} conversation.js:53; number/email must be typed by him conversation.js:74; Confirm tier, trusted origins, channel approval actions.js:32-36; addContact contacts.js:12-18 (US numbers only, contacts.js:7)",
+    "kind": "action",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [],
+     "action": "contact",
+     "must_not": [
+      "draft",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a206",
+    "phrases": [
+     "Who's in my contacts?",
+     "List my contacts",
+     "Do I have Jake saved?"
+    ],
+    "intent": "See saved contacts",
+    "data_needed": "contacts table; exists",
+    "coverage": "partial",
+    "coverage_note": "/contacts command lists names only telegram.js:63, contacts.js:31. Plain-language 'who's in my contacts' goes to the model, which sees only id/name/has_phone/has_email (conversation.js:49) so it can answer existence but not via code; no code-answered NL path",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a207",
+    "phrases": [
+     "What's Jake's number?",
+     "What's Dana's email again?",
+     "Send me Mom's phone number"
+    ],
+    "intent": "Look up a contact's details",
+    "data_needed": "contacts table; exists but deliberately withheld from chat",
+    "coverage": "partial",
+    "coverage_note": "By design numbers/addresses stay in D1 and the web app (telegram.js:62, DATA.md C2; card masks phone actions.js:31). Web app GET /api/contacts index.js:142 shows full details. Chat cannot reveal them; could add masked/email-only answer",
+    "kind": "read_answer",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "contacts_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a208",
+    "phrases": [
+     "Update Jake's number to 773-555-0199",
+     "Change Mom's email",
+     "Delete Tyler from my contacts",
+     "Rename Prof Smith to Professor Smith"
+    ],
+    "intent": "Edit or remove a contact",
+    "data_needed": "contacts table; exists",
+    "coverage": "partial",
+    "coverage_note": "Only in the web app behind step-up: saveContact/deleteContact contacts.js:20-30, index.js:135,143-144. Chat/Telegram has no edit action and addContact rejects duplicate names contacts.js:14. Intentional per SAFETY.md:33 (step-up for contact edits); best chat answer is a step-up link pointer",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a209",
+    "phrases": [
+     "Draft an email to Professor Smith asking for an extension",
+     "Write Dana a thank-you note",
+     "Email Dad about flights home, from my school account"
+    ],
+    "intent": "Draft a new email to a saved contact into Gmail Drafts",
+    "data_needed": "contacts (email), gmail drafts scope per account; exists",
+    "coverage": "covered",
+    "coverage_note": "Model action {type:'draft'} conversation.js:53; validate actions.js:37-40; sendDraft contacts.js:42-51 writes Gmail draft via gmaildraft.js:19-22 (POST/PUT drafts only allowlist gmaildraft.js:5), falls back to Telegram text; 10/day cap contacts.js:34; foreign links stripped conversation.js:63",
+    "kind": "action",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "contacts_search"
+     ],
+     "action": "draft",
+     "must_not": [
+      "proposal",
+      "contact"
+     ]
+    }
+   },
+   {
+    "id": "a210",
+    "phrases": [
+     "Make it shorter",
+     "Make it more formal",
+     "Change the subject to 'Extension request'",
+     "Add that I can meet Thursday"
+    ],
+    "intent": "Revise the draft he's working on",
+    "data_needed": "drafts table; exists",
+    "coverage": "covered",
+    "coverage_note": "draft_edit action conversation.js:53, actions.js:41-43; editDraft updates the same Gmail draft contacts.js:54-64; current draft = most recent within 3 hours contacts.js:53",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a211",
+    "phrases": [
+     "Reply to Professor Smith's email saying I'll be there",
+     "Respond to that recruiter email",
+     "Write back to the email from Career Advancement"
+    ],
+    "intent": "Draft a reply to a specific received email, threaded",
+    "data_needed": "mail_items (sender/subject only, no bodies), Gmail threadId/Message-ID; drafts table lacks thread fields",
+    "coverage": "partial",
+    "coverage_note": "Draft only works if the sender is a saved contact (actions.js:38); the model never sees received email (conversation.js:49-51; untrusted only blocks/tasks/draft), and saveGmailDraft builds a fresh message with no threadId/In-Reply-To (gmaildraft.js:15-21), so it is not threaded. 'reply' phrases are excluded from mail queries schedule.js:122. Sender address must never come from From/Reply-To (ROADMAP.md:144)",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a212",
+    "phrases": [
+     "Email someone who isn't saved: draft to newperson@x.com",
+     "Draft an email to the recruiter whose address I'll paste"
+    ],
+    "intent": "Draft to an address typed now, not in contacts",
+    "data_needed": "contacts table",
+    "coverage": "partial",
+    "coverage_note": "System prompt makes the model refuse and ask him to add the contact first (conversation.js:53 'Recipients come ONLY from the supplied contacts'); requires a two-step add-contact approval then draft. Could be smoothed into one flow (approve contact card, then auto-draft) while keeping the rule",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a213",
+    "phrases": [
+     "What drafts do I have?",
+     "Did you finish the email to Dana?",
+     "Show me the draft to Dad again"
+    ],
+    "intent": "List/recall pending Beacon-made drafts",
+    "data_needed": "drafts table joined with contacts; exists",
+    "coverage": "missing",
+    "coverage_note": "Only the single 'current' draft (last 3h) is in model context conversation.js:49, contacts.js:53; no /drafts command in telegram.js and no code-answered list",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a214",
+    "phrases": [
+     "Go back to the email to Mom from this morning and add a line",
+     "Edit yesterday's draft to the professor"
+    ],
+    "intent": "Edit an older draft (outside 3-hour window)",
+    "data_needed": "drafts table; exists",
+    "coverage": "missing",
+    "coverage_note": "editDraft only accepts currentDraft (updated in last 3h) contacts.js:53-57; older drafts unreachable from chat",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a215",
+    "phrases": [
+     "Send that email",
+     "Go ahead and send it",
+     "Email Professor Smith right now"
+    ],
+    "intent": "Actually send an email",
+    "data_needed": "gmail.send; deliberately not used",
+    "coverage": "not_possible",
+    "coverage_note": "Hard rule: Beacon never sends email (SAFETY.md:16, gmaildraft.js:1-7 allowlist drafts only; system prompt conversation.js:53). Reply already tells him to press Send himself conversation.js:96",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a216",
+    "phrases": [
+     "Text Jake I'm running late",
+     "Send Mom a text saying I landed",
+     "iMessage Dana"
+    ],
+    "intent": "Send an SMS/iMessage to a contact",
+    "data_needed": "iMessage bridge on Mac mini (not built); Twilio SMS off",
+    "coverage": "not_possible",
+    "coverage_note": "No texting path: SAFETY.md:16 texts are Draft-only; ROADMAP.md:204,208 iMessage bridge gated on Mac mini, A2P 10DLC ruled out; system prompt 'You cannot ... text people' conversation.js:53. Could offer paste-ready text in Telegram (Draft tier) today",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a217",
+    "phrases": [
+     "Write me a text to send Jake saying I'm late",
+     "What should I text my landlord?"
+    ],
+    "intent": "Draft a paste-ready text message (he sends)",
+    "data_needed": "none beyond model",
+    "coverage": "partial",
+    "coverage_note": "No 'text draft' action type in actions.js:16-63; model can only answer freeform in reply (conversation.js:53) and the reply has foreign numbers/links stripped conversation.js:62. Works informally, no contact binding",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a218",
+    "phrases": [
+     "Has Dana replied yet?",
+     "Did the recruiter ever get back to me?",
+     "Who do I need to follow up with?"
+    ],
+    "intent": "Check outreach reply status / follow-ups",
+    "data_needed": "outreach table (imported tracker) + mail_items replied_at; exists",
+    "coverage": "partial",
+    "coverage_note": "Automatic 7/14-day nudges outreach.js:40-47 and morning brief brief.js:101; markReplied outreach.js:52-60. No chat/code answer for 'has X replied' or 'who to follow up with' (not in schedule.js/tasks.js or model context conversation.js:49)",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a219",
+    "phrases": [
+     "Did Mom email me?",
+     "Anything from Professor Smith?",
+     "Any emails from Dana this week?"
+    ],
+    "intent": "Check mail from a specific person/contact",
+    "data_needed": "mail_items sender/subject; exists",
+    "coverage": "missing",
+    "coverage_note": "isMailQuery explicitly excludes 'from <name>' and 'about' (schedule.js:123), so it falls to the model, which has no mail data (conversation.js:49-51). Could add sender-filtered code answer over mail_items (subject+sender only)",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a220",
+    "phrases": [
+     "Anything new in Club?",
+     "What's going on with the fraternity this week?",
+     "Did Club announce anything?",
+     "When's chapter?"
+    ],
+    "intent": "Recap recent Club Announcements",
+    "data_needed": "notifications rows kind='groupme' (summaries) exist; raw messages not stored",
+    "coverage": "missing",
+    "coverage_note": "checkGroupMe only pushes alerts groupme.js:56-92; nothing answers chat questions about them (no handler in schedule.js/telegram.js; not in model context conversation.js:49). Could answer from notifications kind='groupme' by code",
+    "kind": "read_answer",
+    "frequency": 3,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "groupme_recent"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a221",
+    "phrases": [
+     "Put the Club formal on my calendar",
+     "Add that chapter meeting to my calendar"
+    ],
+    "intent": "Turn a Club announcement into a calendar event",
+    "data_needed": "groupme notification text (untrusted) + cal_create approval",
+    "coverage": "partial",
+    "coverage_note": "He can say the time himself and cal_create works (conversation.js:53, calendar.js), but the model can't see the announcement ('that' has no referent unless in last 8 messages history conversation.js:52; alerts sent via notify are not in messages). Untrusted-derived proposal must stay Confirm (SAFETY.md:49)",
+    "kind": "action",
+    "frequency": 2,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "groupme_recent"
+     ],
+     "action": "cal_create",
+     "must_not": [
+      "calendar_write",
+      "task_change"
+     ]
+    }
+   },
+   {
+    "id": "a222",
+    "phrases": [
+     "Post in the Club GroupMe that I'll be late",
+     "Reply to the Club announcement",
+     "Message the fraternity group"
+    ],
+    "intent": "Post to GroupMe",
+    "data_needed": "GroupMe write API; deliberately not used",
+    "coverage": "not_possible",
+    "coverage_note": "GroupMe is read-only, Club Announcements only (groupme.js:1-3,45-51 GET only); sending messages to people is Draft-only per SAFETY.md:16",
+    "kind": "action",
+    "frequency": 1
+   },
+   {
+    "id": "a223",
+    "phrases": [
+     "Stop sending me Club alerts",
+     "Only tell me about Club events, not socials",
+     "Mute Club for the weekend"
+    ],
+    "intent": "Tune or mute GroupMe alerts",
+    "data_needed": "settings/preferences row; exists",
+    "coverage": "missing",
+    "coverage_note": "No toggle: checkGroupMe runs every 15 min from index.js:187 unless GROUPME_TOKEN missing or global pause (groupme.js:57-59). No /club command in telegram.js; filters are code regex groupme.js:11-16",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a224",
+    "phrases": [
+     "Is GroupMe connected?",
+     "Why didn't I get the Club alert?"
+    ],
+    "intent": "Check GroupMe watcher health",
+    "data_needed": "sources table; exists",
+    "coverage": "covered",
+    "coverage_note": "/status lists source health telegram.js:43-46; groupme source written with detail groupme.js:57,84,89",
+    "kind": "read_answer",
+    "frequency": 1
+   },
+   {
+    "id": "a225",
+    "phrases": [
+     "Pause everything",
+     "Stop Beacon",
+     "Resume"
+    ],
+    "intent": "Kill switch from Telegram",
+    "data_needed": "settings paused flag; exists",
+    "coverage": "covered",
+    "coverage_note": "/stop pauses telegram.js:41; resume deliberately web-only telegram.js:42",
+    "kind": "action",
+    "frequency": 1
+   },
+   {
+    "id": "a226",
+    "phrases": [
+     "What can you do?",
+     "Help",
+     "What commands are there?"
+    ],
+    "intent": "Telegram help/command list",
+    "data_needed": "none",
+    "coverage": "covered",
+    "coverage_note": "/start and /help telegram.js:93",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a227",
+    "phrases": [
+     "Call Mom from this phone call",
+     "While I'm on the line, connect me to Dad",
+     "Hey Beacon (on voice), call Dana"
+    ],
+    "intent": "Request a bridged call while on a voice session",
+    "data_needed": "contacts, Twilio",
+    "coverage": "partial",
+    "coverage_note": "Voice can propose, but approval is forced to Telegram card voice.js:74-76, conversation.js:141 (SAFETY.md:31). Intentional; requires picking up phone to tap Approve",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a228",
+    "phrases": [
+     "Forward this email to Dad",
+     "Forward the syllabus email to my partner"
+    ],
+    "intent": "Forward an existing email",
+    "data_needed": "gmail forward / send; not granted",
+    "coverage": "not_possible",
+    "coverage_note": "Forward = sending; Gmail write allowlist is drafts only gmaildraft.js:5; MAIL_ACTION excludes forward schedule.js:122. A draft that quotes the original would need email body (untrusted, never given to the action model per ROADMAP.md:114)",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a229",
+    "phrases": [
+     "Remind me to text Jake back tomorrow",
+     "I owe Dana an email, remind me Friday"
+    ],
+    "intent": "Reminder to contact someone",
+    "data_needed": "tasks table; exists",
+    "coverage": "covered",
+    "coverage_note": "task_add with due_at conversation.js:53, actions.js:50-52; applied with Undo conversation.js:101-107",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a230",
+    "phrases": [
+     "Who is Dana again?",
+     "What do I know about Professor Smith?",
+     "Add a note to Jake's contact: met at career fair"
+    ],
+    "intent": "Recall or add notes about a person",
+    "data_needed": "contacts.notes column exists; Career_Plan/people notes via kb",
+    "coverage": "partial",
+    "coverage_note": "contacts.notes stored (migrations/0011_contacts.sql) but not passed to the model (compact has id/name/has_phone/has_email only conversation.js:49); kbSearch may surface people notes from files conversation.js:51. No chat action to append notes to a contact",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a231",
+    "phrases": [
+     "Who did I call this week?",
+     "Did the call to Mom go through?",
+     "When did I last talk to Dad?"
+    ],
+    "intent": "Call history",
+    "data_needed": "bridge_calls + audit (call:bridge:placed/failed); exists",
+    "coverage": "missing",
+    "coverage_note": "bridge_calls rows contacts.js:75 and audit contacts.js:79 exist but no chat/command reads them; approval card edit shows only immediate success telegram.js:137",
+    "kind": "read_answer",
+    "frequency": 1
+   }
+  ]
+ },
+ {
+  "domain": "?",
+  "asks": [
+   {
+    "id": "a232",
+    "phrases": [
+     "What's new in my email?",
+     "Anything new in my inbox?",
+     "Catch me up on email",
+     "Check my mail"
+    ],
+    "intent": "Summary of recent triaged mail across both accounts, important first",
+    "data_needed": "mail_items (sender, subject, level, account); exists",
+    "coverage": "covered",
+    "coverage_note": "schedule.js:123 isMailQuery routes to mailAnswer schedule.js:142-153 (code-only, last 24h default, notify/digest grouping, noise + phishing counts); wired at conversation.js:45",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a233",
+    "phrases": [
+     "Anything in my school email?",
+     "What came in on my UChicago account today?",
+     "Check my uchicago inbox since Monday"
+    ],
+    "intent": "Same summary filtered to one account and a time range",
+    "data_needed": "mail_items.account (migration 0028); exists",
+    "coverage": "covered",
+    "coverage_note": "mailAccount schedule.js:124 picks school/personal; parseRange schedule.js:29 handles today/yesterday/weekday/dates; stale source note schedule.js:146-150",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a234",
+    "phrases": [
+     "Did Professor Smith email me?",
+     "Anything from Goldman?",
+     "Has the recruiter gotten back to me?",
+     "Did I get anything from Career Advancement?"
+    ],
+    "intent": "Look up mail from a specific person/org",
+    "data_needed": "mail_items.sender/domain searchable; exists but no lookup path",
+    "coverage": "missing",
+    "coverage_note": "isMailQuery explicitly rejects 'from <X>' and 'about' (schedule.js:123), and converse() context (conversation.js:49) contains no mail_items, so the model cannot answer. Needs a code-side sender/domain LIKE search over mail_items (and optionally contacts/outreach names)",
+    "kind": "read_answer",
+    "frequency": 5,
+    "route": "agent",
+    "eval_phrases": [
+     0,
+     1
+    ],
+    "expect": {
+     "tools": [
+      "email_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a235",
+    "phrases": [
+     "Any emails about the DC trek?",
+     "Did I get anything about my internship application?",
+     "Find the email about housing"
+    ],
+    "intent": "Search triaged mail by topic/keyword",
+    "data_needed": "mail_items.subject (school records stored as placeholder); exists",
+    "coverage": "missing",
+    "coverage_note": "'about/regarding' excluded at schedule.js:123; no subject search anywhere. Could add code-only subject LIKE over mail_items (school-record rows already have no subject, google.js:98), or live Gmail q= search with gmail.readonly metadata",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "email_search"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a236",
+    "phrases": [
+     "Is there anything urgent I need to deal with?",
+     "Do any emails need a reply?",
+     "What emails need me?"
+    ],
+    "intent": "Only the notify-level items still needing action",
+    "data_needed": "mail_items level='notify'; no 'handled/replied' state",
+    "coverage": "partial",
+    "coverage_note": "Works only if he says 'email/inbox' (schedule.js:121 MAIL regex) and shows 'needs you' list (schedule.js:137); no per-item handled/replied flag, so already-answered mail keeps appearing; 'anything urgent' without the word email falls to the model with no mail context",
+    "kind": "read_answer",
+    "frequency": 5
+   },
+   {
+    "id": "a237",
+    "phrases": [
+     "What does that email from Dean Lee say?",
+     "Summarize the email from my advisor",
+     "Read me the latest email from Mom"
+    ],
+    "intent": "Body-level summary of a specific message",
+    "data_needed": "Gmail message body via gmail.readonly; mail_items stores no bodies (0007 comment)",
+    "coverage": "missing",
+    "coverage_note": "Only headers + 300-char snippet go to a toolless triage model (mail.js:67); bodies never fetched (google.js:85 format=metadata). Feasible only via a separate toolless summarizer with scrub() output (SAFETY rule 4, SAFETY.md:48); must refuse school-record mail (mail.js:21,45)",
+    "kind": "read_answer",
+    "frequency": 4,
+    "route": "agent",
+    "eval_phrases": [
+     0
+    ],
+    "expect": {
+     "tools": [
+      "email_search",
+      "email_read"
+     ],
+     "action": null,
+     "must_not": [
+      "proposal",
+      "task_change",
+      "draft",
+      "contact",
+      "calendar_write"
+     ]
+    }
+   },
+   {
+    "id": "a238",
+    "phrases": [
+     "What's my grade email say?",
+     "Read me my transcript email",
+     "Did my grade post?"
+    ],
+    "intent": "Content of grade/roster/registrar mail",
+    "data_needed": "C3/C4 school records",
+    "coverage": "not_possible",
+    "coverage_note": "By design school records are flagged only, never summarized or sent to a model, subject not stored: mail.js:20-21,45,79; google.js:97-98",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a239",
+    "phrases": [
+     "Draft a reply to Sarah saying I can meet Thursday",
+     "Write an email to my advisor asking for an extension",
+     "Email Professor Lee from my school account"
+    ],
+    "intent": "Create a Gmail draft to a saved contact, chosen account",
+    "data_needed": "contacts, drafts table, Gmail drafts allowlist; exists",
+    "coverage": "covered",
+    "coverage_note": "draft action actions.js:37-40 -> sendDraft contacts.js:42-51 -> saveGmailDraft gmaildraft.js:19 (POST/PUT drafts only, gmaildraft.js:5); account school/personal per migration 0018; reply text conversation.js:93-99",
+    "kind": "action",
+    "frequency": 5
+   },
+   {
+    "id": "a240",
+    "phrases": [
+     "Reply to that email from the recruiter",
+     "Respond to the last email in that thread",
+     "Answer Dean Lee's email"
+    ],
+    "intent": "Threaded reply draft to a specific received message",
+    "data_needed": "Gmail threadId + Message-ID/References headers; mail_items stores id but not threadId",
+    "coverage": "partial",
+    "coverage_note": "Drafts are new messages only (rawMessage gmaildraft.js:15-18 has no In-Reply-To/References/threadId), recipient must be a saved contact (actions.js:38), and the model never sees which email he means. Needs threadId on mail_items and a reply-draft that reuses the stored sender only if it matches a contact",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a241",
+    "phrases": [
+     "Shorten that draft",
+     "Make it more formal",
+     "Change the subject to 'Follow-up'"
+    ],
+    "intent": "Edit the draft he is working on",
+    "data_needed": "drafts.current (3h window); exists",
+    "coverage": "covered",
+    "coverage_note": "draft_edit actions.js:41-43, editDraft contacts.js:54-64 (PUT same Gmail draft), currentDraft window contacts.js:53",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a242",
+    "phrases": [
+     "What drafts do I have waiting?",
+     "Did you write that email to Sarah yet?",
+     "Show me my unsent drafts"
+    ],
+    "intent": "List Beacon-created drafts",
+    "data_needed": "drafts table (subject, contact, account, created_at); exists",
+    "coverage": "missing",
+    "coverage_note": "No code path lists drafts; only the single current draft (<3h) is in model context (conversation.js:49). Code-only answer over drafts JOIN contacts is easy",
+    "kind": "read_answer",
+    "frequency": 3
+   },
+   {
+    "id": "a243",
+    "phrases": [
+     "Draft an email to the hiring manager at Booz (not in contacts)",
+     "Write to jane@firm.com"
+    ],
+    "intent": "Draft to someone not saved",
+    "data_needed": "contacts table",
+    "coverage": "partial",
+    "coverage_note": "Recipients only from contacts (SAFETY; conversation.js:53 prompt; actions.js:38). He can add the contact first via contact action actions.js:32-36 (approval in Telegram/web). Drafting to arbitrary addresses is intentionally not allowed",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a244",
+    "phrases": [
+     "Send that email",
+     "Just send it",
+     "Email him back for me"
+    ],
+    "intent": "Beacon sends mail",
+    "data_needed": "gmail.send",
+    "coverage": "not_possible",
+    "coverage_note": "SAFETY rule 7: send/delete/trash unreachable (SAFETY.md:51); allowlist gmaildraft.js:5; system prompt conversation.js:53",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a245",
+    "phrases": [
+     "Forward that to my mom",
+     "Forward the offer letter to my advisor"
+    ],
+    "intent": "Forward a message",
+    "data_needed": "gmail.send",
+    "coverage": "not_possible",
+    "coverage_note": "Forwarding is sending; blocked by SAFETY.md:51 and gmaildraft.js:5. Closest safe alternative: a draft to a saved contact quoting a summary",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a246",
+    "phrases": [
+     "Delete all the spam",
+     "Archive the promo emails",
+     "Clean up my inbox",
+     "Mark these as read"
+    ],
+    "intent": "Bulk delete/archive/mark-read",
+    "data_needed": "gmail.modify",
+    "coverage": "not_possible",
+    "coverage_note": "Read-only except drafts; never deletes/trashes (mailclean.js:3, SAFETY.md:51). Only forward-looking quarantine filters exist",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a247",
+    "phrases": [
+     "Unsubscribe me from Handshake emails",
+     "Stop these newsletters",
+     "Get me off that mailing list"
+    ],
+    "intent": "One-click unsubscribe from a sender",
+    "data_needed": "List-Unsubscribe headers via gmail.readonly; exists",
+    "coverage": "partial",
+    "coverage_note": "unsubscribe() mailclean.js:28-44 only via admin API /api/mail/unsubscribe (index.js:103) and the Sunday nudge button (quarantine.js:61-66); no chat/voice path (MAIL_ACTION excludes it, schedule.js:122). Needs a Confirm-tier action keyed to a mail_scan/mail_items sender",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a248",
+    "phrases": [
+     "Quarantine emails from Club Alumni",
+     "Stop showing me RSO emails in my inbox",
+     "Filter out that sender"
+    ],
+    "intent": "Add a skip-inbox filter for a sender",
+    "data_needed": "Gmail settings filters (gmail.settings.basic)",
+    "coverage": "partial",
+    "coverage_note": "quarantine() mailclean.js:45-57 exists but only via admin route index.js:104 (laptop script); no chat action",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a249",
+    "phrases": [
+     "What's in quarantine?",
+     "Did anything important land in quarantine this week?",
+     "Anything I missed from the filtered senders?"
+    ],
+    "intent": "On-demand quarantine review",
+    "data_needed": "quarantine_items; exists",
+    "coverage": "partial",
+    "coverage_note": "weeklyQuarantine quarantine.js:36-52 runs only on Sunday schedule (service.js:179-183); no conversational trigger",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a250",
+    "phrases": [
+     "Stop alerting me about LinkedIn emails",
+     "That sender doesn't matter",
+     "Always tell me when Jane Street emails"
+    ],
+    "intent": "Adjust alert rules for a sender",
+    "data_needed": "sender_rules, mail_items.feedback; exists",
+    "coverage": "partial",
+    "coverage_note": "👍/👎 buttons recordFeedback mail.js:95-107 (3 ignores -> digest), /rules and /rules remove telegram.js:59-61; no direct chat 'mute X', and promotion to always-notify is not supported (mail.js:86 rules only demote; CRITERIA.md edits are Jackson's)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a251",
+    "phrases": [
+     "Who haven't I heard back from?",
+     "Which outreach do I need to follow up on?",
+     "Did the Booz guy ever reply?"
+    ],
+    "intent": "Outreach waiting/reply status",
+    "data_needed": "outreach table (sent_at, replied_at); exists",
+    "coverage": "partial",
+    "coverage_note": "waiting() outreach.js:36 feeds 7/14-day nudges (outreach.js:40-47), brief.js:101 and Sunday review review.js:26; no chat query, outreach not in converse context (conversation.js:49)",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a252",
+    "phrases": [
+     "Draft a follow-up to the Lockheed recruiter I emailed last week",
+     "Write my 7-day follow-up to Sarah at Palantir"
+    ],
+    "intent": "Follow-up draft for an outreach row",
+    "data_needed": "outreach + contacts link",
+    "coverage": "partial",
+    "coverage_note": "Nudges only remind (outreach.js:3); draft works only if the person is also a saved contact (actions.js:38); no outreach->contact link or nudge 'Draft follow-up' button",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a253",
+    "phrases": [
+     "I heard back from Sarah, mark it replied",
+     "Close out the Booz outreach"
+    ],
+    "intent": "Manually update outreach status",
+    "data_needed": "outreach.replied_at/status",
+    "coverage": "missing",
+    "coverage_note": "Only set by import (outreach.js:17-33) or automatic verified-reply match (outreach.js:52-59); free-mail replies may be missed; no chat action",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a254",
+    "phrases": [
+     "Is this email legit?",
+     "Is that Duo/password email a scam?",
+     "Was that Bank of America email real?"
+    ],
+    "intent": "Phishing check on a message",
+    "data_needed": "Authentication-Results, BRANDS; exists at ingest",
+    "coverage": "partial",
+    "coverage_note": "Automatic at ingest: ruleTriage mail.js:42-61, phishing alerts mail.js:82, counts in mailAnswer schedule.js:140; no on-demand 'check this one' lookup of the stored verdict/reason",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a255",
+    "phrases": [
+     "Add a task from that email",
+     "Remind me to reply to Dean Lee tomorrow",
+     "Put the deadline from that email on my list"
+    ],
+    "intent": "Turn an email into a task",
+    "data_needed": "tasks; link to mail_items",
+    "coverage": "partial",
+    "coverage_note": "task_add actions.js:50-52 works when he states the task; but the model has no mail context (conversation.js:49) so 'that email' / extracting a deadline is impossible; no mail_items->tasks link",
+    "kind": "action",
+    "frequency": 4
+   },
+   {
+    "id": "a256",
+    "phrases": [
+     "Any new Canvas announcements?",
+     "Did a professor post something on Canvas?",
+     "What did Canvas email me about?"
+    ],
+    "intent": "Canvas notification emails as assignment/announcement source",
+    "data_needed": "Canvas notification mail (instructure.com) in UChicago inbox; Canvas API blocked",
+    "coverage": "missing",
+    "coverage_note": "No instructure/Canvas parsing anywhere (grep: only source id at service.js:24); ROADMAP.md:110 lists it as open. Would need a code parser for Canvas notification subjects -> tasks/mail summary, still refusing grade notifications (mail.js:21)",
+    "kind": "read_answer",
+    "frequency": 4
+   },
+   {
+    "id": "a257",
+    "phrases": [
+     "How many emails did I get today?",
+     "How bad is my inbox?",
+     "How many phishing emails this week?"
+    ],
+    "intent": "Counts/stats",
+    "data_needed": "mail_items counts; exists",
+    "coverage": "covered",
+    "coverage_note": "mailAnswer counts total/filtered/phishing schedule.js:129,139-140; morning brief brief.js:44-45; weekly review review.js:23-24",
+    "kind": "read_answer",
+    "frequency": 2
+   },
+   {
+    "id": "a258",
+    "phrases": [
+     "Call me if Jane Street emails",
+     "Ping me right away if the DC trek app opens",
+     "Let me know the second my offer letter arrives"
+    ],
+    "intent": "Watch for a specific sender/topic and escalate",
+    "data_needed": "watch rules table; CALL level",
+    "coverage": "missing",
+    "coverage_note": "Only hardcoded DC trek special case (quarantine.js:21-23) and IMPORTANT regex (mail.js:22); CALL level not built (ROADMAP.md:105); no user-defined watches",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a259",
+    "phrases": [
+     "Add the interview from that email to my calendar",
+     "That email has an event, put it on my calendar",
+     "Accept the meeting invite"
+    ],
+    "intent": "Calendar from email",
+    "data_needed": "cal_create (calendar.events.owned); invite RSVP needs attendee write",
+    "coverage": "partial",
+    "coverage_note": "cal_create works if he states time/title (calendar.js CALENDAR_ACTIONS via actions.js:61), but model can't read the email; RSVP to others' invites is outside calendar.events.owned (not_possible part)",
+    "kind": "action",
+    "frequency": 3
+   },
+   {
+    "id": "a260",
+    "phrases": [
+     "Send me the attachment from that email",
+     "Get me the PDF the registrar sent"
+    ],
+    "intent": "Retrieve an email attachment",
+    "data_needed": "gmail.readonly attachments; send_file only covers Beacon folder",
+    "coverage": "missing",
+    "coverage_note": "No attachment fetch; send_file only queries local Beacon files (conversation.js:110-113). Untrusted files to Telegram would need type/size checks; school-record attachments must be refused",
+    "kind": "action",
+    "frequency": 2
+   },
+   {
+    "id": "a261",
+    "phrases": [
+     "What's in my email digest?",
+     "Show me the digest again",
+     "What did you put in this morning's digest?"
+    ],
+    "intent": "Re-show digest items on demand",
+    "data_needed": "mail_items level='digest', briefed_at; exists",
+    "coverage": "partial",
+    "coverage_note": "Digest sent only in morning brief (brief.js:131-141); 'worth a look' list in mailAnswer (schedule.js:138) partially substitutes",
+    "kind": "read_answer",
+    "frequency": 2
+   }
+  ]
+ }
+]

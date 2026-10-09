@@ -1,0 +1,17 @@
+#!/bin/sh
+# Blocks commits containing likely secrets, finance data or large files. Install: scripts/install-hooks.sh
+fail=0
+files=$(git diff --cached --name-only --diff-filter=ACM)
+for f in $files; do
+  case "$f" in finance/*|*.csv|*.pdf|*.ofx|*.qfx|*client_secret*|*.pem|*.p12) echo "blocked: $f (private data type)"; fail=1; continue;; esac
+  [ -f "$f" ] || continue
+  size=$(wc -c < "$f"); if [ "$size" -gt 204800 ] && [ "${f##*.}" != "json" ] || [ "$size" -gt 2000000 ]; then case "$f" in *package-lock.json) ;; *) echo "blocked: $f is larger than 200KB"; fail=1;; esac; fi
+  if git diff --cached -U0 -- "$f" | grep -E '^\+' | grep -Eq 'sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|GOCSPX-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[0-9]{8,10}:AA[A-Za-z0-9_-]{30,}|SK[0-9a-f]{32}|AC[0-9a-f]{32}'; then echo "blocked: $f contains something that looks like a secret"; fail=1; fi
+done
+# Personal data (SSNs, card numbers, routing+account) and wider secret patterns, shared with Beacon.
+command -v node >/dev/null && { node gateway/scripts/scan-staged.mjs || fail=1; }
+# Also block the actual local secret values, whatever their format.
+for s in ~/.config/jarvis/gateway_key ~/.config/jarvis/admin_key ~/.config/jarvis/telegram_token ~/.config/jarvis/twilio_auth_token; do
+  [ -s "$s" ] && git diff --cached -U0 | grep -E '^\+' | grep -qF "$(cat "$s")" && { echo "blocked: staged changes contain a value from $(basename "$s")"; fail=1; }
+done
+[ $fail -eq 0 ] || { echo "Commit blocked. Remove the items above (or unstage them) and try again."; exit 1; }

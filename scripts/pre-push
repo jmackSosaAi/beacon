@@ -1,0 +1,12 @@
+#!/bin/sh
+# Stand-in for GitHub branch protection (needs a paid plan on private repos):
+# refuses deleting main or force-pushing over it, from the laptop and the Mac node.
+zero=0000000000000000000000000000000000000000
+while read local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] || continue
+  if [ "$local_sha" = "$zero" ]; then echo "pre-push: deleting main is blocked." >&2; exit 1; fi
+  if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+    echo "pre-push: that would rewrite main's history (force push). Blocked; pull and rebase instead." >&2; exit 1
+  fi
+done
+exit 0

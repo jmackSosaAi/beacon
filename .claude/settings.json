@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.config/jarvis/**)", "Edit(~/.config/jarvis/**)",
+      "Read(~/.ssh/**)", "Edit(~/.ssh/**)",
+      "Read(./finance/**)", "Edit(./finance/**)",
+      "Read(~/Library/Preferences/.wrangler/**)", "Edit(~/Library/Preferences/.wrangler/**)",
+      "Read(**/.dev.vars)", "Edit(**/.dev.vars)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write|Grep|Glob|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"" }]
+      }
+    ]
+  }
+}
