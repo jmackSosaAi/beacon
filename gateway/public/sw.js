@@ -1,0 +1,2 @@
+self.addEventListener('push',event=>{let data;try{data=event.data.json();}catch{data={title:'Beacon',body:'You have a new check-in.'};}event.waitUntil(self.registration.showNotification(data.title,{body:data.body,tag:data.tag,icon:'/icon.svg',data:{url:'/'}}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(windows=>{const existing=windows.find(w=>new URL(w.url).origin===self.location.origin);return existing?existing.focus():clients.openWindow('/');}));});

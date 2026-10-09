@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.config/jarvis/**)",
+      "Edit(~/.config/jarvis/**)",
+      "Read(//Users/you/Jackson Mackney/Beacon/finance/**)",
+      "Edit(//Users/you/Jackson Mackney/Beacon/finance/**)",
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)",
+      "Read(~/Library/Keychains/**)",
+      "Edit(~/Library/Keychains/**)",
+      "Read(~/Library/Messages/**)",
+      "Edit(~/Library/Messages/**)",
+      "Read(~/Library/Application Support/Google/Chrome/**)",
+      "Edit(~/Library/Application Support/Google/Chrome/**)",
+      "Edit(~/Library/LaunchAgents/**)",
+      "Edit(//Users/you/Jackson Mackney/Beacon/gateway/agent-node/claude-settings.json)",
+      "Edit(//Users/you/Jackson Mackney/Beacon/gateway/agent-node/claude-reader-settings.json)",
+      "Edit(//Users/you/Jackson Mackney/Beacon/gateway/agent-node/managed-settings.json)",
+      "Edit(//Library/Application Support/ClaudeCode/**)"
+    ]
+  }
+}

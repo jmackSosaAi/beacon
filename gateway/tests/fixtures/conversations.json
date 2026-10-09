@@ -1,0 +1,39 @@
+[
+  {"id":"c01","name":"correct a calendar card",
+   "turns":[
+     {"say":"put dentist on my calendar thursday at 2","expect":{"action":"cal_create"}},
+     {"after_min":1,"say":"actually make it 3","expect":{"action":"cal_create","replaces":true}}]},
+  {"id":"c02","name":"new topic right after, nothing carried over",
+   "turns":[
+     {"say":"add buy printer ink to my tasks","expect":{"action":"task_add"}},
+     {"after_min":1,"say":"whats the weather like","expect":{"tools":["weather"],"action":null,"must_not":["task_add","task_done","replaces"]}}]},
+  {"id":"c03","name":"after a long break a vague follow-up has nothing to attach to",
+   "turns":[
+     {"say":"put dentist on my calendar thursday at 2","expect":{"action":"cal_create"}},
+     {"after_min":45,"say":"make it 3","expect":{"action":[null,"clarify"],"must_not":["replaces","cal_create"]}}]},
+  {"id":"c04","name":"follow-up on a code-answered schedule question",
+   "turns":[
+     {"say":"what's on my schedule tomorrow","expect":{"route":"fast:schedule"}},
+     {"after_min":1,"say":"block an hour before the econ class to review","expect":{"action":"cal_create"}}]},
+  {"id":"c05","name":"pronoun after a lookup",
+   "turns":[
+     {"say":"when is my econ pset due","expect":{"action":null}},
+     {"after_min":1,"say":"remind me the night before","expect":{"action":["task_add","capture"]}}]},
+  {"id":"c06","name":"refile the photo he just sent",
+   "setup":"photo_career",
+   "turns":[
+     {"say":"actually that's for econ","expect":{"tools":["photo_refile"],"photo_bucket":"class"}}]},
+  {"id":"c07","name":"edit a draft in a follow-up",
+   "turns":[
+     {"say":"draft an email to Dana asking if the DC trek application is still open","expect":{"action":["draft","draft_confirm"]}},
+     {"after_min":2,"say":"make it shorter and more casual","expect":{"action":"draft_edit"}}]},
+  {"id":"c08","name":"three-step chain with a correction in the middle",
+   "turns":[
+     {"say":"add a task to finish the persian essay by friday","expect":{"action":"task_add"}},
+     {"after_min":1,"say":"no wait, thursday","expect":{"action":["task_add","task_priority","capture"],"must_not":["cal_create"]}},
+     {"after_min":1,"say":"and make it high priority","expect":{"action":["task_priority","task_add"]}}]},
+  {"id":"c09","name":"new ask 25 minutes later is fresh (gap)",
+   "turns":[
+     {"say":"draft an email to Dana asking if the DC trek application is still open","expect":{"action":["draft","draft_confirm"]}},
+     {"after_min":25,"say":"log two eggs and toast for breakfast","expect":{"action":["meal","meals"],"history":0}}]}
+]

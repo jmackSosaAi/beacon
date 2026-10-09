@@ -1,0 +1,10 @@
+.wrangler/
+node_modules/
+.dev.vars
+
+dist/
+worker-configuration.d.ts
+
+node_modules/
+.wrangler/
+dist/
