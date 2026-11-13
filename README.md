@@ -10,7 +10,7 @@ never trigger an action by itself.
 
 - `gateway/` — the Worker (`src/`), D1 migrations, React UI, tests (Vitest) and admin scripts.
 - `gateway/agent-node/` — an optional Mac node that runs approved Claude Code tasks in isolated worktrees.
-- `.claude/` — Claude Code agents, hooks and a kickoff workflow used to build it.
+- `.claude/` — agent configs, hooks and a kickoff workflow.
 
 Personal details in prompts, fixtures and tests have been replaced with placeholders. Infrastructure names
 (`jarvis-gateway`, `X-Jarvis-*` headers) are the project's original working name.
